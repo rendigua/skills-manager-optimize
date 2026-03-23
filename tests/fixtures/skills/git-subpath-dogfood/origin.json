@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "source_type": "git",
+  "source_ref": "https://github.com/vercel-labs/agent-browser",
+  "source_subpath": "skills/dogfood",
+  "source_branch": "main",
+  "source_revision": "a865dd56e0053a894a83e0569191985232000f26",
+  "installed_via": "git-subpath-import",
+  "upstream_project": "vercel-labs/agent-browser",
+  "imported_at": "2026-03-18T00:00:00+08:00",
+  "source_kind": "verified-upstream",
+  "distribution_ref": "https://skills.sh/vercel-labs/dogfood",
+  "evidence_refs": [
+    "https://github.com/vercel-labs/agent-browser",
+    "https://skills.sh/vercel-labs/dogfood"
+  ],
+  "confidence": "high",
+  "resolution_method": "github-repo-confirmed",
+  "notes": "Fixture data for dogfood git subpath import"
+}

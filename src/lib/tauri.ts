@@ -1,0 +1,463 @@
+import { invoke } from "@tauri-apps/api/core";
+
+// ── Types ──
+
+export interface ToolInfo {
+  key: string;
+  display_name: string;
+  installed: boolean;
+  skills_dir: string;
+}
+
+export interface ManagedSkill {
+  id: string;
+  name: string;
+  description: string | null;
+  source_type: string;
+  source_ref: string | null;
+  source_ref_resolved: string | null;
+  source_subpath: string | null;
+  source_branch: string | null;
+  source_kind: string | null;
+  distribution_ref: string | null;
+  evidence_refs: string[];
+  confidence: string | null;
+  resolution_method: string | null;
+  source_revision: string | null;
+  remote_revision: string | null;
+  update_status: string;
+  last_checked_at: number | null;
+  last_check_error: string | null;
+  central_path: string;
+  enabled: boolean;
+  created_at: number;
+  updated_at: number;
+  status: string;
+  targets: SkillTarget[];
+  scenario_ids: string[];
+  tags: string[];
+}
+
+export interface SkillTarget {
+  id: string;
+  skill_id: string;
+  tool: string;
+  target_path: string;
+  mode: string;
+  status: string;
+  synced_at: number | null;
+}
+
+export interface SkillDocument {
+  skill_id: string;
+  filename: string;
+  content: string;
+  central_path: string;
+}
+
+export interface Scenario {
+  id: string;
+  name: string;
+  description: string | null;
+  icon: string | null;
+  sort_order: number;
+  skill_count: number;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface DiscoveredGroup {
+  name: string;
+  fingerprint: string | null;
+  locations: { id: string; tool: string; found_path: string }[];
+  imported: boolean;
+}
+
+export interface ScanResult {
+  tools_scanned: number;
+  skills_found: number;
+  groups: DiscoveredGroup[];
+}
+
+export interface MigrationEntry {
+  name: string;
+  path: string;
+  class: string;
+  source_kind: string | null;
+  placement_kind: string | null;
+}
+
+export interface MigrationScanResult {
+  root: string;
+  entries: MigrationEntry[];
+}
+
+export type OriginResolutionAction = "keep" | "write-custom-no-source" | "needs-network-review";
+
+export interface OriginResolutionEntry {
+  name: string;
+  path: string;
+  current_source_type: string;
+  current_source_kind: string | null;
+  source_ref: string | null;
+  source_ref_resolved: string | null;
+  recommended_source_kind: string | null;
+  action: OriginResolutionAction;
+  reason: string;
+  needs_network_review: boolean;
+}
+
+export interface OriginResolutionPlan {
+  root: string;
+  entries: OriginResolutionEntry[];
+}
+
+export interface OriginResolutionApplyResult {
+  applied: number;
+  skipped: number;
+  network_review_needed: number;
+}
+
+export type BackfillAction = "keep" | "apply-candidate" | "needs-review";
+
+export interface OriginBackfillEntry {
+  name: string;
+  path: string;
+  query: string;
+  current_source_type: string;
+  current_source_kind: string | null;
+  candidate_count: number;
+  top_candidate: SourceCandidate | null;
+  action: BackfillAction;
+  reason: string;
+  needs_network_review: boolean;
+}
+
+export interface OriginBackfillPlan {
+  root: string;
+  entries: OriginBackfillEntry[];
+}
+
+export interface OriginBackfillApplyResult {
+  applied: number;
+  skipped: number;
+  review_needed: number;
+}
+
+export interface SkillsShSkill {
+  id: string;
+  skill_id: string;
+  name: string;
+  source: string;
+  installs: number;
+}
+
+export interface SourceCandidate {
+  source_kind: string;
+  source_ref: string;
+  source_ref_resolved: string;
+  source_subpath: string | null;
+  source_branch: string | null;
+  distribution_ref: string | null;
+  title: string;
+  skill_id: string;
+  installs: number;
+  confidence: string;
+  evidence_refs: string[];
+  install_command: string | null;
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  path: string;
+  sort_order: number;
+  skill_count: number;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface ProjectSkill {
+  name: string;
+  dir_name: string;
+  description: string | null;
+  path: string;
+  files: string[];
+  enabled: boolean;
+  in_center: boolean;
+  sync_status: "project_only" | "in_sync" | "project_newer" | "center_newer" | "diverged";
+  center_skill_id: string | null;
+}
+
+export interface ProjectSkillDocument {
+  skill_name: string;
+  filename: string;
+  content: string;
+}
+
+// ── Tools ──
+
+export const getToolStatus = () => invoke<ToolInfo[]>("get_tool_status");
+
+// ── Skills ──
+
+export const getManagedSkills = () =>
+  invoke<ManagedSkill[]>("get_managed_skills");
+
+export const getSkillsForScenario = (scenarioId: string) =>
+  invoke<ManagedSkill[]>("get_skills_for_scenario", {
+    scenarioId,
+  });
+
+export const getSkillDocument = (skillId: string) =>
+  invoke<SkillDocument>("get_skill_document", { skillId });
+
+export const deleteManagedSkill = (skillId: string) =>
+  invoke<void>("delete_managed_skill", { skillId });
+
+export const createGeneratedSkill = (
+  name: string,
+  content: string,
+  createdBy: string,
+  creationMode?: string | null,
+  derivationSummary?: string | null
+) =>
+  invoke<ManagedSkill>("create_generated_skill", {
+    name,
+    content,
+    createdBy,
+    creationMode: creationMode ?? null,
+    derivationSummary: derivationSummary ?? null,
+  });
+
+export const installLocal = (sourcePath: string, name?: string) =>
+  invoke<void>("install_local", { sourcePath, name: name || null });
+
+export const installGit = (repoUrl: string, name?: string) =>
+  invoke<void>("install_git", { repoUrl, name: name || null });
+
+export const installFromSkillssh = (source: string, skillId: string) =>
+  invoke<void>("install_from_skillssh", { source, skillId });
+
+export const cancelInstall = (key: string) =>
+  invoke<boolean>("cancel_install", { key });
+
+export const checkSkillUpdate = (skillId: string, force?: boolean) =>
+  invoke<ManagedSkill>("check_skill_update", {
+    skillId,
+    force: force ?? false,
+  });
+
+export const checkAllSkillUpdates = (force?: boolean) =>
+  invoke<void>("check_all_skill_updates", {
+    force: force ?? false,
+  });
+
+export const updateSkill = (skillId: string) =>
+  invoke<ManagedSkill>("update_skill", { skillId });
+
+export const reimportLocalSkill = (skillId: string) =>
+  invoke<ManagedSkill>("reimport_local_skill", { skillId });
+
+export const getAllTags = () => invoke<string[]>("get_all_tags");
+
+export const setSkillTags = (skillId: string, tags: string[]) =>
+  invoke<void>("set_skill_tags", { skillId, tags });
+
+// ── Sync ──
+
+export const syncSkillToTool = (skillId: string, tool: string) =>
+  invoke<void>("sync_skill_to_tool", { skillId, tool });
+
+export const unsyncSkillFromTool = (skillId: string, tool: string) =>
+  invoke<void>("unsync_skill_from_tool", { skillId, tool });
+
+// ── Scan ──
+
+export const scanLocalSkills = () => invoke<ScanResult>("scan_local_skills");
+
+export const importExistingSkill = (sourcePath: string, name?: string) =>
+  invoke<void>("import_existing_skill", { sourcePath, name: name || null });
+
+export const importAllDiscovered = () =>
+  invoke<void>("import_all_discovered");
+
+export const scanRuntimeMigration = (rootPath: string) =>
+  invoke<MigrationScanResult>("scan_runtime_migration", { rootPath });
+
+export const scanOriginResolution = (rootPath?: string) =>
+  invoke<OriginResolutionPlan>("scan_origin_resolution", {
+    rootPath: rootPath ?? null,
+  });
+
+export const applyOriginResolution = (selectedPaths: string[], rootPath?: string) =>
+  invoke<OriginResolutionApplyResult>("apply_origin_resolution", {
+    rootPath: rootPath ?? null,
+    selectedPaths,
+  });
+
+export const scanOriginBackfill = (rootPath?: string, limit?: number) =>
+  invoke<OriginBackfillPlan>("scan_origin_backfill", {
+    rootPath: rootPath ?? null,
+    limit: limit ?? null,
+  });
+
+export const applyOriginBackfill = (rootPath?: string, limit?: number) =>
+  invoke<OriginBackfillApplyResult>("apply_origin_backfill", {
+    rootPath: rootPath ?? null,
+    limit: limit ?? null,
+  });
+
+// ── Browse ──
+
+export const fetchLeaderboard = (board: string) =>
+  invoke<SkillsShSkill[]>("fetch_leaderboard", { board });
+
+export const searchSkillssh = (query: string, limit?: number) =>
+  invoke<SkillsShSkill[]>("search_skillssh", {
+    query,
+    limit: limit ?? null,
+  });
+
+export const resolveSourceCandidates = (query: string, limit?: number) =>
+  invoke<SourceCandidate[]>("resolve_source_candidates", {
+    query,
+    limit: limit ?? null,
+  });
+
+// ── Settings ──
+
+export const getSettings = (key: string) =>
+  invoke<string | null>("get_settings", { key });
+
+export const setSettings = (key: string, value: string) =>
+  invoke<void>("set_settings", { key, value });
+
+export const getCentralRepoPath = () =>
+  invoke<string>("get_central_repo_path");
+
+export const openCentralRepoFolder = () =>
+  invoke<void>("open_central_repo_folder");
+
+export interface AppUpdateInfo {
+  has_update: boolean;
+  current_version: string;
+  latest_version: string;
+  release_url: string;
+}
+
+export const checkAppUpdate = () =>
+  invoke<AppUpdateInfo>("check_app_update");
+
+// ── Git Backup ──
+
+export interface GitBackupStatus {
+  is_repo: boolean;
+  remote_url: string | null;
+  branch: string | null;
+  has_changes: boolean;
+  ahead: number;
+  behind: number;
+  last_commit: string | null;
+  last_commit_time: string | null;
+}
+
+export const gitBackupStatus = () =>
+  invoke<GitBackupStatus>("git_backup_status");
+
+export const gitBackupInit = () => invoke<void>("git_backup_init");
+
+export const gitBackupSetRemote = (url: string) =>
+  invoke<void>("git_backup_set_remote", { url });
+
+export const gitBackupCommit = (message: string) =>
+  invoke<void>("git_backup_commit", { message });
+
+export const gitBackupPush = () => invoke<void>("git_backup_push");
+
+export const gitBackupPull = () => invoke<void>("git_backup_pull");
+
+export const gitBackupClone = (url: string) =>
+  invoke<void>("git_backup_clone", { url });
+
+// ── Scenarios ──
+
+export const getScenarios = () => invoke<Scenario[]>("get_scenarios");
+
+export const getActiveScenario = () =>
+  invoke<Scenario | null>("get_active_scenario");
+
+export const createScenario = (name: string, description?: string, icon?: string) =>
+  invoke<Scenario>("create_scenario", {
+    name,
+    description: description || null,
+    icon: icon || null,
+  });
+
+export const updateScenario = (
+  id: string,
+  name: string,
+  description?: string,
+  icon?: string
+) =>
+  invoke<void>("update_scenario", {
+    id,
+    name,
+    description: description || null,
+    icon: icon || null,
+  });
+
+export const deleteScenario = (id: string) =>
+  invoke<void>("delete_scenario", { id });
+
+export const switchScenario = (id: string) =>
+  invoke<void>("switch_scenario", { id });
+
+export const addSkillToScenario = (skillId: string, scenarioId: string) =>
+  invoke<void>("add_skill_to_scenario", { skillId, scenarioId });
+
+export const removeSkillFromScenario = (skillId: string, scenarioId: string) =>
+  invoke<void>("remove_skill_from_scenario", { skillId, scenarioId });
+
+export const reorderScenarios = (ids: string[]) =>
+  invoke<void>("reorder_scenarios", { ids });
+
+// ── Projects ──
+
+export const getProjects = () => invoke<Project[]>("get_projects");
+
+export const addProject = (path: string) =>
+  invoke<Project>("add_project", { path });
+
+export const removeProject = (id: string) =>
+  invoke<void>("remove_project", { id });
+
+export const scanProjects = (root: string) =>
+  invoke<string[]>("scan_projects", { root });
+
+export const getProjectSkills = (projectId: string) =>
+  invoke<ProjectSkill[]>("get_project_skills", { projectId });
+
+export const getProjectSkillDocument = (projectPath: string, skillDirName: string) =>
+  invoke<ProjectSkillDocument>("get_project_skill_document", { projectPath, skillDirName });
+
+export const importProjectSkillToCenter = (projectId: string, skillDirName: string) =>
+  invoke<void>("import_project_skill_to_center", { projectId, skillDirName });
+
+export const exportSkillToProject = (skillId: string, projectId: string) =>
+  invoke<void>("export_skill_to_project", { skillId, projectId });
+
+export const updateProjectSkillToCenter = (projectId: string, skillDirName: string) =>
+  invoke<void>("update_project_skill_to_center", { projectId, skillDirName });
+
+export const updateProjectSkillFromCenter = (projectId: string, skillDirName: string) =>
+  invoke<void>("update_project_skill_from_center", { projectId, skillDirName });
+
+export const toggleProjectSkill = (projectId: string, skillDirName: string, enabled: boolean) =>
+  invoke<void>("toggle_project_skill", { projectId, skillDirName, enabled });
+
+export const deleteProjectSkill = (projectId: string, skillDirName: string) =>
+  invoke<void>("delete_project_skill", { projectId, skillDirName });
+
+export const slugifySkillNames = (names: string[]) =>
+  invoke<string[]>("slugify_skill_names", { names });
