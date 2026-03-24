@@ -85,6 +85,7 @@ export function InstallSkills() {
   const marketSkillsLengthRef = useRef(0);
   const [debouncedMarketQuery, setDebouncedMarketQuery] = useState("");
   const deferredMarketQuery = useDeferredValue(marketQuery);
+  const desktopRuntimeAvailable = api.isTauriRuntimeAvailable();
   const resetSourceOverflowState = useCallback(() => {
     setSourceOverflowOpen(false);
     setSourceSearch("");
@@ -178,6 +179,13 @@ export function InstallSkills() {
 
   useEffect(() => {
     if (activeTab !== "market") return;
+    if (!desktopRuntimeAvailable) {
+      setMarketLoading(false);
+      setMarketLoadingMore(false);
+      setMarketError(t("common.desktopRuntimeRequired"));
+      setMarketSkills([]);
+      return;
+    }
 
     const query = debouncedMarketQuery.trim();
     const loadingMore =
@@ -237,13 +245,19 @@ export function InstallSkills() {
       });
 
     return () => { stale = true; };
-  }, [activeTab, debouncedMarketQuery, marketReloadKey, marketSearchLimit, marketTab, pruneMarketSearchCache, t]);
+  }, [activeTab, debouncedMarketQuery, desktopRuntimeAvailable, marketReloadKey, marketSearchLimit, marketTab, pruneMarketSearchCache, t]);
 
   useEffect(() => {
+    if (!desktopRuntimeAvailable) {
+      setScanResult(null);
+      setScanLoading(false);
+      setLocalError(t("common.desktopRuntimeRequired"));
+      return;
+    }
     if (activeTab === "local" && !scanResult && !scanLoading) {
       runScan();
     }
-  }, [activeTab, scanLoading, scanResult, runScan]);
+  }, [activeTab, desktopRuntimeAvailable, scanLoading, scanResult, runScan, t]);
 
   const installLocalSource = (sourcePath: string) => {
     const name = sourcePath.split("/").pop() || sourcePath;

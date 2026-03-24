@@ -1,4 +1,23 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke as tauriInvoke } from "@tauri-apps/api/core";
+
+const TAURI_RUNTIME_UNAVAILABLE = "TAURI_RUNTIME_UNAVAILABLE";
+
+export function isTauriRuntimeAvailable(): boolean {
+  if (typeof window === "undefined") return false;
+  const candidate = (window as Window & { __TAURI_INTERNALS__?: { invoke?: unknown } }).__TAURI_INTERNALS__;
+  return typeof candidate?.invoke === "function";
+}
+
+function invoke<T>(command: string, args?: Record<string, unknown>): Promise<T> {
+  if (!isTauriRuntimeAvailable()) {
+    return Promise.reject(new Error(TAURI_RUNTIME_UNAVAILABLE));
+  }
+  return tauriInvoke<T>(command, args);
+}
+
+export function isTauriRuntimeUnavailableError(error: unknown): boolean {
+  return error instanceof Error && error.message === TAURI_RUNTIME_UNAVAILABLE;
+}
 
 // ── Types ──
 

@@ -92,6 +92,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const refreshAppData = useCallback(async () => {
+    if (!api.isTauriRuntimeAvailable()) {
+      setScenarios([]);
+      setActiveScenario(null);
+      setTools([]);
+      setManagedSkills([]);
+      setProjects([]);
+      setAppError(i18n.t("common.desktopRuntimeRequired"));
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     await Promise.all([refreshScenarios(), refreshTools(), refreshManagedSkills(), refreshProjects()]);
     setLoading(false);
@@ -119,6 +129,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [refreshAppData]);
 
   useEffect(() => {
+    if (!api.isTauriRuntimeAvailable()) {
+      return;
+    }
     const unlistenPromise = listen<string>("tray-scenario-switched", async () => {
       await Promise.all([refreshScenarios(), refreshManagedSkills()]);
     });

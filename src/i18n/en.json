@@ -378,6 +378,7 @@
     "retry": "Retry",
     "loadFailed": "Failed to load {{item}}",
     "dataOutOfDate": "Some data could not be refreshed",
+    "desktopRuntimeRequired": "This page is running in browser preview mode, so Tauri desktop APIs are unavailable. Use `npm run tauri:dev` or a packaged desktop build for full functionality.",
     "documentMissing": "No document file was found",
     "scenarios": "scenarios",
     "agents": "agent status",

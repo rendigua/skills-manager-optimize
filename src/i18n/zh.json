@@ -378,6 +378,7 @@
     "retry": "重试",
     "loadFailed": "加载{{item}}失败",
     "dataOutOfDate": "部分数据未成功刷新",
+    "desktopRuntimeRequired": "当前页面运行在浏览器预览环境，Tauri 桌面能力不可用。请使用 `npm run tauri:dev` 或已构建的桌面应用进行完整功能验证。",
     "documentMissing": "没有找到文档文件",
     "scenarios": "场景",
     "agents": "Agent 状态",
