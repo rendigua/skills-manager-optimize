@@ -2,9 +2,9 @@ use std::sync::Arc;
 use tauri::State;
 
 use crate::core::{
-    error::AppError,
     skill_store::SkillStore,
     skillssh_api::{self, LeaderboardType, SkillsShSkill},
+    source_resolver::{self, SourceCandidate},
 };
 
 const LEADERBOARD_CACHE_TTL: i64 = 300; // 5 minutes
@@ -13,7 +13,7 @@ const LEADERBOARD_CACHE_TTL: i64 = 300; // 5 minutes
 pub async fn fetch_leaderboard(
     board: String,
     store: State<'_, Arc<SkillStore>>,
-) -> Result<Vec<SkillsShSkill>, AppError> {
+) -> Result<Vec<SkillsShSkill>, String> {
     let cache_key = format!("leaderboard_{}", board);
 
     // Check cache
@@ -23,12 +23,13 @@ pub async fn fetch_leaderboard(
         }
     }
 
-    let proxy_url = store.proxy_url();
     let board_type = LeaderboardType::from_str(&board);
+    let proxy_url = store.proxy_url();
     let skills = tauri::async_runtime::spawn_blocking(move || {
-        skillssh_api::fetch_leaderboard(board_type, proxy_url.as_deref()).map_err(AppError::network)
+        skillssh_api::fetch_leaderboard(board_type, proxy_url.as_deref()).map_err(|e| e.to_string())
     })
-    .await??;
+    .await
+    .map_err(|e| format!("failed to join leaderboard task: {e}"))??;
 
     // Update cache
     if let Ok(json) = serde_json::to_string(&skills) {
@@ -43,13 +44,35 @@ pub async fn search_skillssh(
     query: String,
     limit: Option<usize>,
     store: State<'_, Arc<SkillStore>>,
-) -> Result<Vec<SkillsShSkill>, AppError> {
-    let proxy_url = store.proxy_url();
+) -> Result<Vec<SkillsShSkill>, String> {
     let requested = limit.unwrap_or(60);
     let bounded = requested.clamp(1, 300);
+    let proxy_url = store.proxy_url();
     tauri::async_runtime::spawn_blocking(move || {
-        skillssh_api::search_skills(&query, bounded, proxy_url.as_deref())
-            .map_err(AppError::network)
+        skillssh_api::search_skills(&query, bounded, proxy_url.as_deref()).map_err(|e| e.to_string())
     })
-    .await?
+    .await
+    .map_err(|e| format!("failed to join search task: {e}"))?
+}
+
+#[tauri::command]
+pub async fn resolve_source_candidates(
+    query: String,
+    limit: Option<usize>,
+    store: State<'_, Arc<SkillStore>>,
+) -> Result<Vec<SourceCandidate>, String> {
+    let requested = limit.unwrap_or(60);
+    let bounded = requested.clamp(1, 200);
+    let store = store.inner().clone();
+    let skillsmp_api_key = store
+        .get_setting("skillsmp_api_key")
+        .map_err(|e| e.to_string())?
+        .filter(|value| !value.trim().is_empty());
+
+    tauri::async_runtime::spawn_blocking(move || {
+        source_resolver::resolve_source_candidates(&query, bounded, skillsmp_api_key.as_deref())
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("failed to join source resolver task: {e}"))?
 }

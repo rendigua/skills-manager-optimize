@@ -42,8 +42,8 @@ pub fn build_http_client(proxy_url: Option<&str>, timeout_secs: u64) -> reqwest:
         .user_agent("skills-manager")
         .timeout(std::time::Duration::from_secs(timeout_secs));
     if let Some(proxy) = proxy_url.filter(|s| !s.is_empty()) {
-        if let Ok(p) = reqwest::Proxy::all(proxy) {
-            builder = builder.proxy(p);
+        if let Ok(proxy) = reqwest::Proxy::all(proxy) {
+            builder = builder.proxy(proxy);
         }
     }
     builder.build().unwrap_or_default()
@@ -57,6 +57,7 @@ pub fn fetch_leaderboard(
 
     let html = client
         .get(board.url())
+        .header("User-Agent", "skills-manager/1.0.0")
         .send()
         .context("Failed to fetch skills.sh")?
         .text()
@@ -140,7 +141,10 @@ fn parse_skills_array(arr: &[serde_json::Value]) -> Vec<SkillsShSkill> {
             .filter(|v| !v.is_empty())
             .unwrap_or(&skill_id)
             .to_string();
-        let installs = item.get("installs").and_then(|v| v.as_u64()).unwrap_or(0);
+        let installs = item
+            .get("installs")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0);
 
         skills.push(SkillsShSkill {
             id,
@@ -229,6 +233,7 @@ pub fn search_skills(
 
     let resp: serde_json::Value = client
         .get(&url)
+        .header("User-Agent", "skills-manager/1.0.0")
         .send()
         .context("Failed to search skills.sh")?
         .json()

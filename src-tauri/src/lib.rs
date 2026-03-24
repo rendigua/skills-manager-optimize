@@ -3,7 +3,7 @@ use std::sync::Arc;
 use tauri::{Emitter, Manager};
 
 mod commands;
-mod core;
+pub mod core;
 
 /// Shared flag: when true, CloseRequested should NOT be prevented.
 pub static QUITTING: AtomicBool = AtomicBool::new(false);
@@ -399,11 +399,9 @@ pub fn run() {
             commands::skills::get_skills_for_scenario,
             commands::skills::get_skill_document,
             commands::skills::delete_managed_skill,
+            commands::skills::create_generated_skill,
             commands::skills::install_local,
             commands::skills::install_git,
-            commands::skills::preview_git_install,
-            commands::skills::confirm_git_install,
-            commands::skills::cancel_git_preview,
             commands::skills::install_from_skillssh,
             commands::skills::check_skill_update,
             commands::skills::check_all_skill_updates,
@@ -412,17 +410,22 @@ pub fn run() {
             commands::skills::get_all_tags,
             commands::skills::set_skill_tags,
             commands::skills::cancel_install,
-            commands::skills::batch_import_folder,
             // Sync
             commands::sync::sync_skill_to_tool,
             commands::sync::unsync_skill_from_tool,
             // Scan
             commands::scan::scan_local_skills,
+            commands::scan::scan_runtime_migration,
+            commands::scan::scan_origin_resolution,
+            commands::scan::apply_origin_resolution,
+            commands::scan::scan_origin_backfill,
+            commands::scan::apply_origin_backfill,
             commands::scan::import_existing_skill,
             commands::scan::import_all_discovered,
             // Browse
             commands::browse::fetch_leaderboard,
             commands::browse::search_skillssh,
+            commands::browse::resolve_source_candidates,
             // Settings
             commands::settings::get_settings,
             commands::settings::set_settings,

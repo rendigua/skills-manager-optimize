@@ -4,14 +4,8 @@ use serde::Serialize;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
-use super::crypto;
-
-/// Settings keys whose values are encrypted at rest with AES-256-GCM.
-const SENSITIVE_KEYS: &[&str] = &["proxy_url", "git_backup_remote_url"];
-
 pub struct SkillStore {
     conn: Mutex<Connection>,
-    secret_key: [u8; 32],
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -86,18 +80,133 @@ impl SkillStore {
         let conn = Connection::open(db_path)?;
         conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;")?;
 
-        super::migrations::run_migrations(&conn)?;
+        conn.execute_batch(
+            "
+            CREATE TABLE IF NOT EXISTS skills (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT,
+                source_type TEXT NOT NULL,
+                source_ref TEXT,
+                source_ref_resolved TEXT,
+                source_subpath TEXT,
+                source_branch TEXT,
+                source_revision TEXT,
+                origin_json_path TEXT,
+                remote_revision TEXT,
+                central_path TEXT NOT NULL UNIQUE,
+                content_hash TEXT,
+                enabled INTEGER DEFAULT 1,
+                created_at INTEGER,
+                updated_at INTEGER,
+                status TEXT DEFAULT 'ok',
+                update_status TEXT DEFAULT 'unknown',
+                last_checked_at INTEGER,
+                last_check_error TEXT
+            );
+            CREATE INDEX IF NOT EXISTS idx_skills_name ON skills(name);
 
-        // Derive key file path from the database directory.
-        let key_path = db_path
-            .parent()
-            .map(|p| p.join(".secret.key"))
-            .unwrap_or_else(|| PathBuf::from(".secret.key"));
-        let secret_key = crypto::load_or_create_key(&key_path)?;
+            CREATE TABLE IF NOT EXISTS skill_targets (
+                id TEXT PRIMARY KEY,
+                skill_id TEXT NOT NULL REFERENCES skills(id) ON DELETE CASCADE,
+                tool TEXT NOT NULL,
+                target_path TEXT NOT NULL,
+                mode TEXT NOT NULL,
+                status TEXT DEFAULT 'ok',
+                synced_at INTEGER,
+                last_error TEXT,
+                UNIQUE(skill_id, tool)
+            );
+
+            CREATE TABLE IF NOT EXISTS discovered_skills (
+                id TEXT PRIMARY KEY,
+                tool TEXT NOT NULL,
+                found_path TEXT NOT NULL,
+                name_guess TEXT,
+                fingerprint TEXT,
+                found_at INTEGER NOT NULL,
+                imported_skill_id TEXT REFERENCES skills(id) ON DELETE SET NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS skillssh_cache (
+                cache_key TEXT PRIMARY KEY,
+                data TEXT NOT NULL,
+                fetched_at INTEGER
+            );
+
+            CREATE TABLE IF NOT EXISTS scenarios (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL UNIQUE,
+                description TEXT,
+                icon TEXT,
+                sort_order INTEGER DEFAULT 0,
+                created_at INTEGER,
+                updated_at INTEGER
+            );
+
+            CREATE TABLE IF NOT EXISTS scenario_skills (
+                scenario_id TEXT NOT NULL REFERENCES scenarios(id) ON DELETE CASCADE,
+                skill_id TEXT NOT NULL REFERENCES skills(id) ON DELETE CASCADE,
+                added_at INTEGER,
+                PRIMARY KEY(scenario_id, skill_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS active_scenario (
+                key TEXT PRIMARY KEY DEFAULT 'current',
+                scenario_id TEXT REFERENCES scenarios(id) ON DELETE SET NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS projects (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                path TEXT NOT NULL UNIQUE,
+                sort_order INTEGER DEFAULT 0,
+                created_at INTEGER,
+                updated_at INTEGER
+            );
+
+            CREATE TABLE IF NOT EXISTS skill_tags (
+                skill_id TEXT NOT NULL REFERENCES skills(id) ON DELETE CASCADE,
+                tag TEXT NOT NULL,
+                PRIMARY KEY(skill_id, tag)
+            );
+            CREATE INDEX IF NOT EXISTS idx_skill_tags_tag ON skill_tags(tag);
+            ",
+        )?;
+
+        #[allow(clippy::let_and_return)]
+        let has_icon_column = {
+            let mut stmt = conn.prepare("PRAGMA table_info(scenarios)")?;
+            let rows = stmt.query_map([], |row| row.get::<_, String>(1))?;
+            let has_icon = rows.filter_map(|row| row.ok()).any(|name| name == "icon");
+            has_icon
+        };
+
+        if !has_icon_column {
+            conn.execute("ALTER TABLE scenarios ADD COLUMN icon TEXT", [])?;
+        }
+
+        add_column_if_missing(&conn, "skills", "source_ref_resolved", "TEXT")?;
+        add_column_if_missing(&conn, "skills", "source_subpath", "TEXT")?;
+        add_column_if_missing(&conn, "skills", "source_branch", "TEXT")?;
+        add_column_if_missing(&conn, "skills", "origin_json_path", "TEXT")?;
+        add_column_if_missing(&conn, "skills", "remote_revision", "TEXT")?;
+        add_column_if_missing(
+            &conn,
+            "skills",
+            "update_status",
+            "TEXT DEFAULT 'unknown'",
+        )?;
+        add_column_if_missing(&conn, "skills", "last_checked_at", "INTEGER")?;
+        add_column_if_missing(&conn, "skills", "last_check_error", "TEXT")?;
 
         Ok(Self {
             conn: Mutex::new(conn),
-            secret_key,
         })
     }
 
@@ -445,8 +554,9 @@ impl SkillStore {
     pub fn get_cache(&self, key: &str, ttl_secs: i64) -> Result<Option<String>> {
         let conn = self.conn.lock().unwrap();
         let now = chrono::Utc::now().timestamp();
-        let mut stmt = conn
-            .prepare("SELECT data FROM skillssh_cache WHERE cache_key = ?1 AND fetched_at > ?2")?;
+        let mut stmt = conn.prepare(
+            "SELECT data FROM skillssh_cache WHERE cache_key = ?1 AND fetched_at > ?2",
+        )?;
         let cutoff = now - ttl_secs;
         let mut rows = stmt.query_map(params![key, cutoff], |row| row.get::<_, String>(0))?;
         Ok(rows.next().and_then(|r| r.ok()))
@@ -464,57 +574,25 @@ impl SkillStore {
 
     // ── Settings ──
 
+    pub fn get_setting(&self, key: &str) -> Result<Option<String>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare("SELECT value FROM settings WHERE key = ?1")?;
+        let mut rows = stmt.query_map(params![key], |row| row.get::<_, String>(0))?;
+        Ok(rows.next().and_then(|r| r.ok()))
+    }
+
     pub fn proxy_url(&self) -> Option<String> {
         self.get_setting("proxy_url")
             .ok()
             .flatten()
-            .filter(|s| !s.is_empty())
-    }
-
-    pub fn get_setting(&self, key: &str) -> Result<Option<String>> {
-        // Read the raw stored value while holding the lock, then release it
-        // before any write-back so we don't re-enter the mutex.
-        let raw = {
-            let conn = self.conn.lock().unwrap();
-            let mut stmt = conn.prepare("SELECT value FROM settings WHERE key = ?1")?;
-            let mut rows = stmt.query_map(params![key], |row| row.get::<_, String>(0))?;
-            rows.next().and_then(|r| r.ok())
-        };
-
-        let value = match raw {
-            None => return Ok(None),
-            Some(v) => v,
-        };
-
-        if SENSITIVE_KEYS.contains(&key) {
-            if crypto::is_encrypted(&value) {
-                // Happy path: already encrypted, just decrypt.
-                Ok(Some(crypto::decrypt(&self.secret_key, &value)?))
-            } else {
-                // Backward compat: old plaintext value — upgrade it silently.
-                let encrypted = crypto::encrypt(&self.secret_key, &value)?;
-                let conn = self.conn.lock().unwrap();
-                conn.execute(
-                    "INSERT OR REPLACE INTO settings (key, value) VALUES (?1, ?2)",
-                    params![key, encrypted],
-                )?;
-                Ok(Some(value))
-            }
-        } else {
-            Ok(Some(value))
-        }
+            .filter(|value| !value.is_empty())
     }
 
     pub fn set_setting(&self, key: &str, value: &str) -> Result<()> {
-        let stored = if SENSITIVE_KEYS.contains(&key) {
-            crypto::encrypt(&self.secret_key, value)?
-        } else {
-            value.to_string()
-        };
         let conn = self.conn.lock().unwrap();
         conn.execute(
             "INSERT OR REPLACE INTO settings (key, value) VALUES (?1, ?2)",
-            params![key, stored],
+            params![key, value],
         )?;
         Ok(())
     }
@@ -582,27 +660,12 @@ impl SkillStore {
 
     pub fn reorder_scenarios(&self, ids: &[String]) -> Result<()> {
         let conn = self.conn.lock().unwrap();
-        let tx = conn.unchecked_transaction()?;
         for (i, id) in ids.iter().enumerate() {
-            tx.execute(
+            conn.execute(
                 "UPDATE scenarios SET sort_order = ?1 WHERE id = ?2",
                 params![i as i32, id],
             )?;
         }
-        tx.commit()?;
-        Ok(())
-    }
-
-    pub fn reorder_projects(&self, ids: &[String]) -> Result<()> {
-        let conn = self.conn.lock().unwrap();
-        let tx = conn.unchecked_transaction()?;
-        for (i, id) in ids.iter().enumerate() {
-            tx.execute(
-                "UPDATE projects SET sort_order = ?1 WHERE id = ?2",
-                params![i as i32, id],
-            )?;
-        }
-        tx.commit()?;
         Ok(())
     }
 
@@ -629,8 +692,9 @@ impl SkillStore {
 
     pub fn get_skill_ids_for_scenario(&self, scenario_id: &str) -> Result<Vec<String>> {
         let conn = self.conn.lock().unwrap();
-        let mut stmt =
-            conn.prepare("SELECT skill_id FROM scenario_skills WHERE scenario_id = ?1")?;
+        let mut stmt = conn.prepare(
+            "SELECT skill_id FROM scenario_skills WHERE scenario_id = ?1",
+        )?;
         let rows = stmt.query_map(params![scenario_id], |row| row.get::<_, String>(0))?;
         Ok(rows.filter_map(|r| r.ok()).collect())
     }
@@ -662,8 +726,9 @@ impl SkillStore {
 
     pub fn get_scenarios_for_skill(&self, skill_id: &str) -> Result<Vec<String>> {
         let conn = self.conn.lock().unwrap();
-        let mut stmt =
-            conn.prepare("SELECT scenario_id FROM scenario_skills WHERE skill_id = ?1")?;
+        let mut stmt = conn.prepare(
+            "SELECT scenario_id FROM scenario_skills WHERE skill_id = ?1",
+        )?;
         let rows = stmt.query_map(params![skill_id], |row| row.get::<_, String>(0))?;
         Ok(rows.filter_map(|r| r.ok()).collect())
     }
@@ -672,8 +737,9 @@ impl SkillStore {
 
     pub fn get_active_scenario_id(&self) -> Result<Option<String>> {
         let conn = self.conn.lock().unwrap();
-        let mut stmt =
-            conn.prepare("SELECT scenario_id FROM active_scenario WHERE key = 'current'")?;
+        let mut stmt = conn.prepare(
+            "SELECT scenario_id FROM active_scenario WHERE key = 'current'",
+        )?;
         let mut rows = stmt.query_map([], |row| row.get::<_, Option<String>>(0))?;
         Ok(rows.next().and_then(|r| r.ok()).flatten())
     }
@@ -748,6 +814,17 @@ impl SkillStore {
         Ok(())
     }
 
+    pub fn reorder_projects(&self, ids: &[String]) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        for (i, id) in ids.iter().enumerate() {
+            conn.execute(
+                "UPDATE projects SET sort_order = ?1 WHERE id = ?2",
+                params![i as i32, id],
+            )?;
+        }
+        Ok(())
+    }
+
     // ── Skill Tags ──
 
     pub fn get_all_tags(&self) -> Result<Vec<String>> {
@@ -759,10 +836,7 @@ impl SkillStore {
 
     pub fn set_tags_for_skill(&self, skill_id: &str, tags: &[String]) -> Result<()> {
         let conn = self.conn.lock().unwrap();
-        conn.execute(
-            "DELETE FROM skill_tags WHERE skill_id = ?1",
-            params![skill_id],
-        )?;
+        conn.execute("DELETE FROM skill_tags WHERE skill_id = ?1", params![skill_id])?;
         for tag in tags {
             let trimmed = tag.trim();
             if !trimmed.is_empty() {
@@ -781,13 +855,34 @@ impl SkillStore {
         let rows = stmt.query_map([], |row| {
             Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
         })?;
-        let mut map: std::collections::HashMap<String, Vec<String>> =
-            std::collections::HashMap::new();
+        let mut map: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
         for row in rows.filter_map(|r| r.ok()) {
             map.entry(row.0).or_default().push(row.1);
         }
         Ok(map)
     }
+}
+
+fn add_column_if_missing(
+    conn: &Connection,
+    table: &str,
+    column: &str,
+    definition: &str,
+) -> Result<()> {
+    if !has_column(conn, table, column)? {
+        conn.execute(
+            &format!("ALTER TABLE {table} ADD COLUMN {column} {definition}"),
+            [],
+        )?;
+    }
+    Ok(())
+}
+
+fn has_column(conn: &Connection, table: &str, column: &str) -> Result<bool> {
+    let mut stmt = conn.prepare(&format!("PRAGMA table_info({table})"))?;
+    let rows = stmt.query_map([], |row| row.get::<_, String>(1))?;
+    let exists = rows.filter_map(|row| row.ok()).any(|name| name == column);
+    Ok(exists)
 }
 
 fn map_skill_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<SkillRecord> {

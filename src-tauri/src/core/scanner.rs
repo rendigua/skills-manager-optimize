@@ -3,6 +3,7 @@ use serde::Serialize;
 use std::path::Path;
 
 use super::content_hash;
+use super::policy_engine::should_skip_directory;
 use super::skill_store::DiscoveredSkillRecord;
 use super::tool_adapters;
 
@@ -64,6 +65,11 @@ pub fn scan_local_skills(managed_paths: &[String]) -> Result<ScanPlan> {
                 continue;
             }
 
+            let name = entry.file_name().to_string_lossy().to_string();
+            if should_skip_directory(&name) {
+                continue;
+            }
+
             if is_symlink_to_central(&path) {
                 continue;
             }
@@ -73,7 +79,6 @@ pub fn scan_local_skills(managed_paths: &[String]) -> Result<ScanPlan> {
                 continue;
             }
 
-            let name = entry.file_name().to_string_lossy().to_string();
             let fingerprint = content_hash::hash_directory(&path).ok();
 
             let now = chrono::Utc::now().timestamp_millis();
@@ -103,14 +108,12 @@ pub fn group_discovered(records: &[DiscoveredSkillRecord]) -> Vec<DiscoveredGrou
 
     for rec in records {
         let name = rec.name_guess.clone().unwrap_or_else(|| "unknown".into());
-        let entry = groups
-            .entry(name.clone())
-            .or_insert_with(|| DiscoveredGroup {
-                name,
-                fingerprint: rec.fingerprint.clone(),
-                locations: Vec::new(),
-                imported: false,
-            });
+        let entry = groups.entry(name.clone()).or_insert_with(|| DiscoveredGroup {
+            name,
+            fingerprint: rec.fingerprint.clone(),
+            locations: Vec::new(),
+            imported: false,
+        });
 
         if rec.imported_skill_id.is_some() {
             entry.imported = true;

@@ -33,5 +33,10 @@ dist-ssr
 
 .claude
 docs
+!docs/
+!docs/superpowers/
+!docs/superpowers/**
 reference
 CLAUDE.md
+.lh/
+output/

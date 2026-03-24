@@ -1,0 +1,515 @@
+{
+  "generated_at": "2026-03-19T18:47:19.4263974+08:00",
+  "root": "C:\\Users\\Administrator\\.agents\\skills",
+  "excluded_containers": [
+    {
+      "name": "superpowers",
+      "kind": "container",
+      "children": [
+        "brainstorming",
+        "dispatching-parallel-agents",
+        "executing-plans",
+        "finishing-a-development-branch",
+        "receiving-code-review",
+        "requesting-code-review",
+        "subagent-driven-development",
+        "systematic-debugging",
+        "test-driven-development",
+        "using-git-worktrees",
+        "using-superpowers",
+        "verification-before-completion",
+        "writing-plans",
+        "writing-skills"
+      ]
+    }
+  ],
+  "counts": [
+    {
+      "source_kind": "custom-no-source",
+      "count": 20
+    },
+    {
+      "source_kind": "verified-distribution",
+      "count": 33
+    }
+  ],
+  "skills": [
+    {
+      "name": "agent-browser",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\agent-browser",
+      "source_kind": "verified-distribution",
+      "source_type": "marketplace",
+      "source_ref": "vercel-labs/agent-browser/agent-browser",
+      "source_ref_resolved": "https://github.com/vercel-labs/agent-browser.git",
+      "distribution_ref": "https://skills.sh/vercel-labs/agent-browser/agent-browser"
+    },
+    {
+      "name": "algorithmic-art",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\algorithmic-art",
+      "source_kind": "verified-distribution",
+      "source_type": "marketplace",
+      "source_ref": "anthropics/skills/algorithmic-art",
+      "source_ref_resolved": "https://github.com/anthropics/skills.git",
+      "distribution_ref": "https://skills.sh/anthropics/skills/algorithmic-art"
+    },
+    {
+      "name": "brand-guidelines",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\brand-guidelines",
+      "source_kind": "verified-distribution",
+      "source_type": "marketplace",
+      "source_ref": "anthropics/skills/brand-guidelines",
+      "source_ref_resolved": "https://github.com/anthropics/skills.git",
+      "distribution_ref": "https://skills.sh/anthropics/skills/brand-guidelines"
+    },
+    {
+      "name": "canvas-design",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\canvas-design",
+      "source_kind": "verified-distribution",
+      "source_type": "marketplace",
+      "source_ref": "anthropics/skills/canvas-design",
+      "source_ref_resolved": "https://github.com/anthropics/skills.git",
+      "distribution_ref": "https://skills.sh/anthropics/skills/canvas-design"
+    },
+    {
+      "name": "code-review",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\code-review",
+      "source_kind": "custom-no-source",
+      "source_type": "manual",
+      "source_ref": null,
+      "source_ref_resolved": null,
+      "distribution_ref": null
+    },
+    {
+      "name": "doc-coauthoring",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\doc-coauthoring",
+      "source_kind": "verified-distribution",
+      "source_type": "marketplace",
+      "source_ref": "anthropics/skills/doc-coauthoring",
+      "source_ref_resolved": "https://github.com/anthropics/skills.git",
+      "distribution_ref": "https://skills.sh/anthropics/skills/doc-coauthoring"
+    },
+    {
+      "name": "docx",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\docx",
+      "source_kind": "verified-distribution",
+      "source_type": "marketplace",
+      "source_ref": "anthropics/skills/docx",
+      "source_ref_resolved": "https://github.com/anthropics/skills.git",
+      "distribution_ref": "https://skills.sh/anthropics/skills/docx"
+    },
+    {
+      "name": "dogfood",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\dogfood",
+      "source_kind": "verified-distribution",
+      "source_type": "marketplace",
+      "source_ref": "vercel-labs/agent-browser/dogfood",
+      "source_ref_resolved": "https://github.com/vercel-labs/agent-browser.git",
+      "distribution_ref": "https://skills.sh/vercel-labs/agent-browser/dogfood"
+    },
+    {
+      "name": "extract-errors",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\extract-errors",
+      "source_kind": "verified-distribution",
+      "source_type": "marketplace",
+      "source_ref": "facebook/react/extract-errors",
+      "source_ref_resolved": "https://github.com/facebook/react.git",
+      "distribution_ref": "https://skills.sh/facebook/react/extract-errors"
+    },
+    {
+      "name": "feature-flags",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\feature-flags",
+      "source_kind": "verified-distribution",
+      "source_type": "marketplace",
+      "source_ref": "facebook/react/feature-flags",
+      "source_ref_resolved": "https://github.com/facebook/react.git",
+      "distribution_ref": "https://skills.sh/facebook/react/feature-flags"
+    },
+    {
+      "name": "figma",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\figma",
+      "source_kind": "custom-no-source",
+      "source_type": "manual",
+      "source_ref": null,
+      "source_ref_resolved": null,
+      "distribution_ref": null
+    },
+    {
+      "name": "figma-implement-design",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\figma-implement-design",
+      "source_kind": "verified-distribution",
+      "source_type": "marketplace",
+      "source_ref": "openai/skills/figma-implement-design",
+      "source_ref_resolved": "https://github.com/openai/skills.git",
+      "distribution_ref": "https://skills.sh/openai/skills/figma-implement-design"
+    },
+    {
+      "name": "find-skills",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\find-skills",
+      "source_kind": "verified-distribution",
+      "source_type": "marketplace",
+      "source_ref": "vercel-labs/skills/find-skills",
+      "source_ref_resolved": "https://github.com/vercel-labs/skills.git",
+      "distribution_ref": "https://skills.sh/vercel-labs/skills/find-skills"
+    },
+    {
+      "name": "fix",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\fix",
+      "source_kind": "custom-no-source",
+      "source_type": "manual",
+      "source_ref": null,
+      "source_ref_resolved": null,
+      "distribution_ref": null
+    },
+    {
+      "name": "flow",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\flow",
+      "source_kind": "custom-no-source",
+      "source_type": "manual",
+      "source_ref": null,
+      "source_ref_resolved": null,
+      "distribution_ref": null
+    },
+    {
+      "name": "frontend-design",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\frontend-design",
+      "source_kind": "verified-distribution",
+      "source_type": "marketplace",
+      "source_ref": "anthropics/skills/frontend-design",
+      "source_ref_resolved": "https://github.com/anthropics/skills.git",
+      "distribution_ref": "https://skills.sh/anthropics/skills/frontend-design"
+    },
+    {
+      "name": "gh-address-comments",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\gh-address-comments",
+      "source_kind": "verified-distribution",
+      "source_type": "marketplace",
+      "source_ref": "openai/skills/gh-address-comments",
+      "source_ref_resolved": "https://github.com/openai/skills.git",
+      "distribution_ref": "https://skills.sh/openai/skills/gh-address-comments"
+    },
+    {
+      "name": "gh-fix-ci",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\gh-fix-ci",
+      "source_kind": "verified-distribution",
+      "source_type": "marketplace",
+      "source_ref": "openai/skills/gh-fix-ci",
+      "source_ref_resolved": "https://github.com/openai/skills.git",
+      "distribution_ref": "https://skills.sh/openai/skills/gh-fix-ci"
+    },
+    {
+      "name": "imagegen",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\imagegen",
+      "source_kind": "custom-no-source",
+      "source_type": "manual",
+      "source_ref": null,
+      "source_ref_resolved": null,
+      "distribution_ref": null
+    },
+    {
+      "name": "internal-comms",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\internal-comms",
+      "source_kind": "verified-distribution",
+      "source_type": "marketplace",
+      "source_ref": "anthropics/skills/internal-comms",
+      "source_ref_resolved": "https://github.com/anthropics/skills.git",
+      "distribution_ref": "https://skills.sh/anthropics/skills/internal-comms"
+    },
+    {
+      "name": "jupyter-notebook",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\jupyter-notebook",
+      "source_kind": "verified-distribution",
+      "source_type": "marketplace",
+      "source_ref": "openai/skills/jupyter-notebook",
+      "source_ref_resolved": "https://github.com/openai/skills.git",
+      "distribution_ref": "https://skills.sh/openai/skills/jupyter-notebook"
+    },
+    {
+      "name": "mcp-builder",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\mcp-builder",
+      "source_kind": "verified-distribution",
+      "source_type": "marketplace",
+      "source_ref": "anthropics/skills/mcp-builder",
+      "source_ref_resolved": "https://github.com/anthropics/skills.git",
+      "distribution_ref": "https://skills.sh/anthropics/skills/mcp-builder"
+    },
+    {
+      "name": "memory-capture-promote",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\memory-capture-promote",
+      "source_kind": "custom-no-source",
+      "source_type": "manual",
+      "source_ref": null,
+      "source_ref_resolved": null,
+      "distribution_ref": null
+    },
+    {
+      "name": "memory-conflict-review",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\memory-conflict-review",
+      "source_kind": "custom-no-source",
+      "source_type": "manual",
+      "source_ref": null,
+      "source_ref_resolved": null,
+      "distribution_ref": null
+    },
+    {
+      "name": "memory-context-pack",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\memory-context-pack",
+      "source_kind": "custom-no-source",
+      "source_type": "manual",
+      "source_ref": null,
+      "source_ref_resolved": null,
+      "distribution_ref": null
+    },
+    {
+      "name": "memory-ops-daily",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\memory-ops-daily",
+      "source_kind": "custom-no-source",
+      "source_type": "manual",
+      "source_ref": null,
+      "source_ref_resolved": null,
+      "distribution_ref": null
+    },
+    {
+      "name": "memory-stack-guardrails",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\memory-stack-guardrails",
+      "source_kind": "custom-no-source",
+      "source_type": "manual",
+      "source_ref": null,
+      "source_ref_resolved": null,
+      "distribution_ref": null
+    },
+    {
+      "name": "memory-stack-plan-check",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\memory-stack-plan-check",
+      "source_kind": "custom-no-source",
+      "source_type": "manual",
+      "source_ref": null,
+      "source_ref_resolved": null,
+      "distribution_ref": null
+    },
+    {
+      "name": "memory-stack-spec-check",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\memory-stack-spec-check",
+      "source_kind": "custom-no-source",
+      "source_type": "manual",
+      "source_ref": null,
+      "source_ref_resolved": null,
+      "distribution_ref": null
+    },
+    {
+      "name": "memory-stack-writeback",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\memory-stack-writeback",
+      "source_kind": "custom-no-source",
+      "source_type": "manual",
+      "source_ref": null,
+      "source_ref_resolved": null,
+      "distribution_ref": null
+    },
+    {
+      "name": "openai-docs",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\openai-docs",
+      "source_kind": "custom-no-source",
+      "source_type": "manual",
+      "source_ref": null,
+      "source_ref_resolved": null,
+      "distribution_ref": null
+    },
+    {
+      "name": "pdf",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\pdf",
+      "source_kind": "verified-distribution",
+      "source_type": "marketplace",
+      "source_ref": "anthropics/skills/pdf",
+      "source_ref_resolved": "https://github.com/anthropics/skills.git",
+      "distribution_ref": "https://skills.sh/anthropics/skills/pdf"
+    },
+    {
+      "name": "playwright",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\playwright",
+      "source_kind": "custom-no-source",
+      "source_type": "manual",
+      "source_ref": null,
+      "source_ref_resolved": null,
+      "distribution_ref": null
+    },
+    {
+      "name": "pptx",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\pptx",
+      "source_kind": "verified-distribution",
+      "source_type": "marketplace",
+      "source_ref": "anthropics/skills/pptx",
+      "source_ref_resolved": "https://github.com/anthropics/skills.git",
+      "distribution_ref": "https://skills.sh/anthropics/skills/pptx"
+    },
+    {
+      "name": "prompt-lookup",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\prompt-lookup",
+      "source_kind": "verified-distribution",
+      "source_type": "marketplace",
+      "source_ref": "f/awesome-chatgpt-prompts/prompt-lookup",
+      "source_ref_resolved": "https://github.com/f/awesome-chatgpt-prompts.git",
+      "distribution_ref": "https://skills.sh/f/awesome-chatgpt-prompts/prompt-lookup"
+    },
+    {
+      "name": "ralph-universal",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\ralph-universal",
+      "source_kind": "custom-no-source",
+      "source_type": "manual",
+      "source_ref": null,
+      "source_ref_resolved": null,
+      "distribution_ref": null
+    },
+    {
+      "name": "react",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\react",
+      "source_kind": "custom-no-source",
+      "source_type": "manual",
+      "source_ref": null,
+      "source_ref_resolved": null,
+      "distribution_ref": null
+    },
+    {
+      "name": "react-state-management",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\react-state-management",
+      "source_kind": "verified-distribution",
+      "source_type": "marketplace",
+      "source_ref": "wshobson/agents/react-state-management",
+      "source_ref_resolved": "https://github.com/wshobson/agents.git",
+      "distribution_ref": "https://skills.sh/wshobson/agents/react-state-management"
+    },
+    {
+      "name": "screenshot",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\screenshot",
+      "source_kind": "custom-no-source",
+      "source_type": "manual",
+      "source_ref": null,
+      "source_ref_resolved": null,
+      "distribution_ref": null
+    },
+    {
+      "name": "security-best-practices",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\security-best-practices",
+      "source_kind": "verified-distribution",
+      "source_type": "marketplace",
+      "source_ref": "supercent-io/skills-template/security-best-practices",
+      "source_ref_resolved": "https://github.com/supercent-io/skills-template.git",
+      "distribution_ref": "https://skills.sh/supercent-io/skills-template/security-best-practices"
+    },
+    {
+      "name": "self-update",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\self-update",
+      "source_kind": "custom-no-source",
+      "source_type": "manual",
+      "source_ref": null,
+      "source_ref_resolved": null,
+      "distribution_ref": null
+    },
+    {
+      "name": "skills-manager",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\skills-manager",
+      "source_kind": "custom-no-source",
+      "source_type": "manual",
+      "source_ref": null,
+      "source_ref_resolved": null,
+      "distribution_ref": null
+    },
+    {
+      "name": "slack-gif-creator",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\slack-gif-creator",
+      "source_kind": "verified-distribution",
+      "source_type": "marketplace",
+      "source_ref": "anthropics/skills/slack-gif-creator",
+      "source_ref_resolved": "https://github.com/anthropics/skills.git",
+      "distribution_ref": "https://skills.sh/anthropics/skills/slack-gif-creator"
+    },
+    {
+      "name": "spreadsheet",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\spreadsheet",
+      "source_kind": "verified-distribution",
+      "source_type": "marketplace",
+      "source_ref": "openai/skills/spreadsheet",
+      "source_ref_resolved": "https://github.com/openai/skills.git",
+      "distribution_ref": "https://skills.sh/openai/skills/spreadsheet"
+    },
+    {
+      "name": "theme-factory",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\theme-factory",
+      "source_kind": "verified-distribution",
+      "source_type": "marketplace",
+      "source_ref": "anthropics/skills/theme-factory",
+      "source_ref_resolved": "https://github.com/anthropics/skills.git",
+      "distribution_ref": "https://skills.sh/anthropics/skills/theme-factory"
+    },
+    {
+      "name": "vercel-composition-patterns",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\vercel-composition-patterns",
+      "source_kind": "verified-distribution",
+      "source_type": "marketplace",
+      "source_ref": "vercel-labs/agent-skills/vercel-composition-patterns",
+      "source_ref_resolved": "https://github.com/vercel-labs/agent-skills.git",
+      "distribution_ref": "https://skills.sh/vercel-labs/agent-skills/vercel-composition-patterns"
+    },
+    {
+      "name": "vercel-react-best-practices",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\vercel-react-best-practices",
+      "source_kind": "verified-distribution",
+      "source_type": "marketplace",
+      "source_ref": "vercel-labs/agent-skills/vercel-react-best-practices",
+      "source_ref_resolved": "https://github.com/vercel-labs/agent-skills.git",
+      "distribution_ref": "https://skills.sh/vercel-labs/agent-skills/vercel-react-best-practices"
+    },
+    {
+      "name": "vercel-react-native-skills",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\vercel-react-native-skills",
+      "source_kind": "verified-distribution",
+      "source_type": "marketplace",
+      "source_ref": "vercel-labs/agent-skills/vercel-react-native-skills",
+      "source_ref_resolved": "https://github.com/vercel-labs/agent-skills.git",
+      "distribution_ref": "https://skills.sh/vercel-labs/agent-skills/vercel-react-native-skills"
+    },
+    {
+      "name": "web-artifacts-builder",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\web-artifacts-builder",
+      "source_kind": "verified-distribution",
+      "source_type": "marketplace",
+      "source_ref": "anthropics/skills/web-artifacts-builder",
+      "source_ref_resolved": "https://github.com/anthropics/skills.git",
+      "distribution_ref": "https://skills.sh/anthropics/skills/web-artifacts-builder"
+    },
+    {
+      "name": "web-design-guidelines",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\web-design-guidelines",
+      "source_kind": "verified-distribution",
+      "source_type": "marketplace",
+      "source_ref": "vercel-labs/agent-skills/web-design-guidelines",
+      "source_ref_resolved": "https://github.com/vercel-labs/agent-skills.git",
+      "distribution_ref": "https://skills.sh/vercel-labs/agent-skills/web-design-guidelines"
+    },
+    {
+      "name": "webapp-testing",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\webapp-testing",
+      "source_kind": "verified-distribution",
+      "source_type": "marketplace",
+      "source_ref": "anthropics/skills/webapp-testing",
+      "source_ref_resolved": "https://github.com/anthropics/skills.git",
+      "distribution_ref": "https://skills.sh/anthropics/skills/webapp-testing"
+    },
+    {
+      "name": "xlsx",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\xlsx",
+      "source_kind": "verified-distribution",
+      "source_type": "marketplace",
+      "source_ref": "anthropics/skills/xlsx",
+      "source_ref_resolved": "https://github.com/anthropics/skills.git",
+      "distribution_ref": "https://skills.sh/anthropics/skills/xlsx"
+    },
+    {
+      "name": "yeet",
+      "path": "C:\\Users\\Administrator\\.agents\\skills\\yeet",
+      "source_kind": "verified-distribution",
+      "source_type": "marketplace",
+      "source_ref": "openai/skills/yeet",
+      "source_ref_resolved": "https://github.com/openai/skills.git",
+      "distribution_ref": "https://skills.sh/openai/skills/yeet"
+    }
+  ]
+}

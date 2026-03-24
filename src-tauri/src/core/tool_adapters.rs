@@ -47,6 +47,14 @@ impl ToolAdapter {
             .iter()
             .any(|path| path.exists())
     }
+
+    pub fn system_skills_dir(&self) -> Option<PathBuf> {
+        if self.key == "codex" {
+            return Some(Self::home().join(".codex/skills/.system"));
+        }
+
+        None
+    }
 }
 
 pub fn default_tool_adapters() -> Vec<ToolAdapter> {
@@ -148,7 +156,6 @@ pub fn find_adapter(key: &str) -> Option<ToolAdapter> {
     default_tool_adapters().into_iter().find(|a| a.key == key)
 }
 
-/// Returns adapters that are installed and not in the disabled list.
 pub fn enabled_installed_adapters(
     store: &crate::core::skill_store::SkillStore,
 ) -> Vec<ToolAdapter> {
@@ -156,10 +163,11 @@ pub fn enabled_installed_adapters(
         .get_setting("disabled_tools")
         .ok()
         .flatten()
-        .and_then(|v| serde_json::from_str(&v).ok())
+        .and_then(|value| serde_json::from_str(&value).ok())
         .unwrap_or_default();
+
     default_tool_adapters()
         .into_iter()
-        .filter(|a| a.is_installed() && !disabled.contains(&a.key))
+        .filter(|adapter| adapter.is_installed() && !disabled.contains(&adapter.key))
         .collect()
 }

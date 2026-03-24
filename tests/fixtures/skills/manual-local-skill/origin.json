@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "source_type": "manual",
+  "source_ref": "H:\\Code Project\\SkillsManager\\local-skills\\manual-local-skill",
+  "source_subpath": null,
+  "source_branch": null,
+  "source_revision": null,
+  "installed_via": "manual-copy",
+  "upstream_project": null,
+  "imported_at": "2026-03-18T00:00:00+08:00",
+  "notes": "Fixture data for manual source type"
+}
