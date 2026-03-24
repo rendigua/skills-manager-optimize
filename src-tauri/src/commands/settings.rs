@@ -114,9 +114,9 @@ pub async fn check_app_update(
         let client = skillssh_api::build_http_client(proxy_url.as_deref(), 15);
 
         let resp: serde_json::Value = client
-            .get("https://api.github.com/repos/xingkongliang/skills-manager/releases/latest")
+            .get("https://api.github.com/repos/rendigua/skills-manager-optimize/releases/latest")
             .send()
-            .map_err(|e| AppError::network(format!("Network error: {e}")))?
+            .map_err(|e| AppError::network(format!("Network error: {e}")))? 
             .json()
             .map_err(|e| AppError::network(format!("Failed to parse response: {e}")))?;
 
@@ -126,7 +126,7 @@ pub async fn check_app_update(
         let latest_version = tag.strip_prefix('v').unwrap_or(tag).to_string();
         let release_url = resp["html_url"]
             .as_str()
-            .unwrap_or("https://github.com/xingkongliang/skills-manager/releases")
+            .unwrap_or("https://github.com/rendigua/skills-manager-optimize/releases")
             .to_string();
 
         let has_update = version_gt(&latest_version, &current_version);

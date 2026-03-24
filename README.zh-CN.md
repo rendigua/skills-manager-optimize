@@ -10,6 +10,8 @@
 
 <p align="center">
   <a href="./README.md">English</a>
+  &nbsp;·&nbsp;
+  <a href="https://github.com/rendigua/skills-manager-optimize">Fork 仓库</a>
 </p>
 
 <p align="center">
@@ -28,8 +30,28 @@
 - **场景管理** — 将技能分组为场景（Scenario），随时切换。
 - **技能标签** — 为技能添加标签并按标签筛选，快速定位。
 - **更新检查** — 为 Git 类技能检查远端更新；本地技能支持重新导入。
+- **来源元数据** — 已安装技能会携带 `origin.json`，让来源、置信度和更新资格在同步、重建和迁移后仍然可追踪。
 - **文档预览** — 直接在应用内查看 `SKILL.md` / `README.md`。
 - **Git 备份** — 用 Git 管理技能库，支持版本控制和多机同步。
+
+## 来源元数据
+
+Skills Manager 将 `origin.json` 视为技能来源的文件侧真相。
+
+- Git 安装会写入“已确认上游”来源。
+- 市场安装会写入“已确认分发来源”，并记录用于后续更新的 GitHub 真源。
+- 本地导入默认进入 `custom-no-source`，直到 resolver 确认真实上游。
+- Agent 生成的 skill 也会写入 `origin.json`，默认是 `manual + custom-no-source`，除非显式绑定真实上游。
+- 来源解析默认优先 `skills.sh`，只有在设置了 `skillsmp_api_key` 或环境变量 `SKILLSMP_API_KEY` 时才会启用 `SkillsMP`。
+- `SkillsMP` 只作为分发证据，不替代 GitHub 真源。
+- 批量回填只会自动应用无歧义强匹配，模糊项会保留给人工复核。
+
+这套设计刻意区分两层语义：
+
+- `provenance`：这个 skill 是怎么来的
+- `update source`：后续应该跟谁比对更新
+
+如果某个 skill 还没有确认真实上游，它依然可以被管理和同步，但不会得到可靠的自动更新结果。
 
 ## Git 备份
 

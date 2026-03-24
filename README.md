@@ -11,9 +11,7 @@
 <p align="center">
   <a href="./README.zh-CN.md">中文说明</a>
   &nbsp;·&nbsp;
-  <a href="https://x.com/JayTL00">@JayTL00 on X</a>
-  &nbsp;·&nbsp;
-  <a href="https://buymeacoffee.com/jaytl">Buy me a coffee</a>
+  <a href="https://github.com/rendigua/skills-manager-optimize">Fork Repository</a>
 </p>
 
 <p align="center">
@@ -40,8 +38,28 @@
 - **Scenarios** — Group skills into scenarios and switch between them instantly.
 - **Skill tagging** — Tag skills and filter by tag for quick lookup.
 - **Update tracking** — Check for upstream updates on Git-based skills; re-import local ones.
+- **Origin metadata** — Installed skills keep `origin.json` so provenance, confidence, and update eligibility survive across sync, rebuild, and migration.
 - **Skill preview** — Read `SKILL.md` / `README.md` docs right inside the app.
 - **Git backup** — Version-control your skill library with Git for backup and multi-machine sync.
+
+## Origin Metadata
+
+Skills Manager treats `origin.json` as the file-side source of truth for provenance.
+
+- Git installs write a verified upstream origin.
+- Marketplace installs write a verified distribution origin plus the resolved GitHub repository used for updates.
+- Local imports default to `custom-no-source` until a resolver confirms a real upstream.
+- Agent-generated skills also write `origin.json`, defaulting to `manual + custom-no-source` unless a real upstream is explicitly bound.
+- The source resolver prefers `skills.sh` first. `SkillsMP` only participates when `skillsmp_api_key` is configured in settings or `SKILLSMP_API_KEY` exists in the environment.
+- `SkillsMP` remains distribution evidence, not a replacement for GitHub upstream truth.
+- Bulk backfill only auto-applies unambiguous matches and leaves ambiguous items for review.
+
+This split is intentional:
+
+- `provenance` answers where the skill came from.
+- `update source` answers what the app should compare against for updates.
+
+If a skill has no confirmed upstream, it can still be managed and synced, but it will not produce a reliable automatic update result.
 
 ## Git Backup
 
