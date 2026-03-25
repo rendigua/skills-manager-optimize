@@ -402,6 +402,9 @@ pub fn run() {
             commands::skills::create_generated_skill,
             commands::skills::install_local,
             commands::skills::install_git,
+            commands::skills::preview_git_install,
+            commands::skills::confirm_git_install,
+            commands::skills::cancel_git_preview,
             commands::skills::install_from_skillssh,
             commands::skills::check_skill_update,
             commands::skills::check_all_skill_updates,
@@ -410,6 +413,7 @@ pub fn run() {
             commands::skills::get_all_tags,
             commands::skills::set_skill_tags,
             commands::skills::cancel_install,
+            commands::skills::batch_import_folder,
             // Sync
             commands::sync::sync_skill_to_tool,
             commands::sync::unsync_skill_from_tool,

@@ -14,6 +14,8 @@ use crate::core::{
     origin_factory::build_install_origin_metadata,
     origin_metadata::{load_origin_metadata, save_origin_metadata, ConfidenceLevel, OriginMetadata},
     policy_engine,
+    skill_metadata,
+    skill_metadata::is_valid_skill_dir,
     skill_store::{SkillRecord, SkillStore, SkillTargetRecord},
     sync_engine,
     update_checker,
@@ -87,6 +89,32 @@ struct GitSkillSource {
     branch: Option<String>,
     subpath: Option<String>,
     locator_skill_id: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct GitSkillPreview {
+    pub dir_name: String,
+    pub name: String,
+    pub description: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct GitPreviewResult {
+    pub temp_dir: String,
+    pub skills: Vec<GitSkillPreview>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct SkillInstallItem {
+    pub dir_name: String,
+    pub name: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct BatchImportResult {
+    pub imported: usize,
+    pub skipped: usize,
+    pub errors: Vec<String>,
 }
 
 struct CancelRegistrationGuard {
@@ -435,6 +463,157 @@ pub async fn install_from_skillssh(
         store_installed_skill(&store, &result, &metadata, active.as_deref())?;
 
         emit_progress("done");
+        Ok(())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn preview_git_install(
+    repo_url: String,
+    store: State<'_, Arc<SkillStore>>,
+    cancel_registry: State<'_, Arc<InstallCancelRegistry>>,
+    app_handle: tauri::AppHandle,
+) -> Result<GitPreviewResult, String> {
+    let store = store.inner().clone();
+    let proxy_url = store.proxy_url();
+    let registry = cancel_registry.inner().clone();
+    let cancel_key = repo_url.clone();
+    let cancel = registry.register(&cancel_key);
+    let _cancel_guard = CancelRegistrationGuard::new(registry.clone(), cancel_key);
+
+    tauri::async_runtime::spawn_blocking(move || {
+        use tauri::Emitter;
+
+        app_handle
+            .emit(
+                "install-progress",
+                serde_json::json!({
+                    "skill_id": repo_url,
+                    "phase": "cloning",
+                }),
+            )
+            .ok();
+
+        let parsed = git_fetcher::parse_git_source(&repo_url);
+        let temp_dir = git_fetcher::clone_repo_ref(
+            &parsed.clone_url,
+            parsed.branch.as_deref(),
+            Some(&cancel),
+            proxy_url.as_deref(),
+        )
+        .map_err(|e| e.to_string())?;
+
+        let build_preview = || -> Result<GitPreviewResult, String> {
+            let skill_dir = resolve_skill_dir(&temp_dir, parsed.subpath.as_deref(), None)?;
+            let dirs = collect_git_skill_dirs(&skill_dir);
+
+            let skills: Vec<GitSkillPreview> = dirs
+                .iter()
+                .map(|dir| {
+                    let meta = skill_metadata::parse_skill_md(dir);
+                    let dir_name = dir
+                        .file_name()
+                        .map(|n| n.to_string_lossy().to_string())
+                        .unwrap_or_else(|| "unknown".to_string());
+                    let name = meta
+                        .name
+                        .as_deref()
+                        .filter(|s| !s.trim().is_empty())
+                        .map(ToOwned::to_owned)
+                        .unwrap_or_else(|| dir_name.clone());
+                    GitSkillPreview {
+                        dir_name,
+                        name,
+                        description: meta.description,
+                    }
+                })
+                .collect();
+
+            Ok(GitPreviewResult {
+                temp_dir: temp_dir.to_string_lossy().to_string(),
+                skills,
+            })
+        };
+
+        build_preview().inspect_err(|_| {
+            git_fetcher::cleanup_temp(&temp_dir);
+        })
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn confirm_git_install(
+    repo_url: String,
+    temp_dir: String,
+    items: Vec<SkillInstallItem>,
+    store: State<'_, Arc<SkillStore>>,
+) -> Result<(), String> {
+    let store = store.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let temp_path = validate_clone_temp_path(&temp_dir)?;
+
+        let result: Result<(), String> = (|| {
+            if items.is_empty() {
+                return Ok(());
+            }
+
+            let parsed = git_fetcher::parse_git_source(&repo_url);
+            let skill_dir = resolve_skill_dir(&temp_path, parsed.subpath.as_deref(), None)?;
+            let all_dirs = collect_git_skill_dirs(&skill_dir);
+            let revision = git_fetcher::get_head_revision(&temp_path).map_err(|e| e.to_string())?;
+            let active = store.get_active_scenario_id().ok().flatten();
+
+            for dir in &all_dirs {
+                let dir_name_entry = dir
+                    .file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or_default();
+                let item = match items.iter().find(|i| i.dir_name == dir_name_entry) {
+                    Some(i) => i,
+                    None => continue,
+                };
+                let custom_name = item.name.trim();
+                let install_name = if custom_name.is_empty() {
+                    None
+                } else {
+                    Some(custom_name)
+                };
+                let result =
+                    installer::install_from_git_dir(dir, install_name).map_err(|e| e.to_string())?;
+                let subpath = git_fetcher::relative_subpath(&temp_path, dir);
+                let metadata = InstallSourceMetadata {
+                    source_type: "git".to_string(),
+                    source_ref: Some(repo_url.clone()),
+                    source_ref_resolved: Some(parsed.clone_url.clone()),
+                    source_subpath: subpath,
+                    source_branch: parsed.branch.clone(),
+                    source_revision: Some(revision.clone()),
+                    remote_revision: Some(revision.clone()),
+                    update_status: "up_to_date".to_string(),
+                    origin_metadata: None,
+                };
+                store_installed_skill(&store, &result, &metadata, active.as_deref())?;
+            }
+            Ok(())
+        })();
+
+        git_fetcher::cleanup_temp(&temp_path);
+        result
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn cancel_git_preview(temp_dir: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        if let Ok(temp_path) = validate_clone_temp_path(&temp_dir) {
+            git_fetcher::cleanup_temp(&temp_path);
+        }
         Ok(())
     })
     .await
@@ -1037,6 +1216,49 @@ fn skill_ssh_id(skill: &SkillRecord) -> Option<String> {
         .and_then(|source_ref| source_ref.rsplit_once('/').map(|(_, skill_id)| skill_id.to_string()))
 }
 
+fn collect_git_skill_dirs(skill_dir: &Path) -> Vec<PathBuf> {
+    if is_valid_skill_dir(skill_dir) {
+        return vec![skill_dir.to_path_buf()];
+    }
+    let mut dirs: Vec<PathBuf> = std::fs::read_dir(skill_dir)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| p.is_dir() && is_valid_skill_dir(p))
+        .collect();
+    dirs.sort();
+    if dirs.is_empty() {
+        vec![skill_dir.to_path_buf()]
+    } else {
+        dirs
+    }
+}
+
+fn validate_clone_temp_path(temp_dir: &str) -> Result<PathBuf, String> {
+    let raw_path = PathBuf::from(temp_dir);
+    if !raw_path.exists() {
+        return Err("Clone session expired, please try again".to_string());
+    }
+    let temp_path = raw_path
+        .canonicalize()
+        .map_err(|_| "Invalid temp directory".to_string())?;
+    let expected_prefix = std::env::temp_dir()
+        .canonicalize()
+        .unwrap_or_else(|_| std::env::temp_dir());
+    if !temp_path.starts_with(&expected_prefix) {
+        return Err("Invalid temp directory".to_string());
+    }
+    let dir_name_str = temp_path
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_default();
+    if !dir_name_str.starts_with("skills-manager-clone-") {
+        return Err("Invalid temp directory".to_string());
+    }
+    Ok(temp_path)
+}
+
 fn resolve_skill_dir(
     repo_dir: &Path,
     subpath: Option<&str>,
@@ -1188,6 +1410,103 @@ pub async fn cancel_install(
     cancel_registry: State<'_, Arc<InstallCancelRegistry>>,
 ) -> Result<bool, String> {
     Ok(cancel_registry.cancel(&key))
+}
+
+#[tauri::command]
+pub async fn batch_import_folder(
+    folder_path: String,
+    store: State<'_, Arc<SkillStore>>,
+    app_handle: tauri::AppHandle,
+) -> Result<BatchImportResult, String> {
+    let store = store.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        use tauri::Emitter;
+
+        let root = PathBuf::from(&folder_path);
+        if !root.is_dir() {
+            return Err("Selected path is not a directory".to_string());
+        }
+
+        let mut skill_dirs: Vec<PathBuf> = Vec::new();
+        let entries = std::fs::read_dir(&root).map_err(|e| e.to_string())?;
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if is_valid_skill_dir(&path) {
+                skill_dirs.push(path);
+            }
+        }
+
+        if skill_dirs.is_empty() {
+            return Ok(BatchImportResult {
+                imported: 0,
+                skipped: 0,
+                errors: vec![],
+            });
+        }
+
+        let total = skill_dirs.len();
+        let mut imported = 0usize;
+        let mut skipped = 0usize;
+        let mut errors = Vec::new();
+        let active = store.get_active_scenario_id().ok().flatten();
+
+        for (i, dir) in skill_dirs.iter().enumerate() {
+            let name = skill_metadata::infer_skill_name(dir);
+
+            app_handle
+                .emit(
+                    "batch-import-progress",
+                    serde_json::json!({
+                        "current": i + 1,
+                        "total": total,
+                        "name": &name,
+                    }),
+                )
+                .ok();
+
+            let prospective_central = central_repo::skills_dir().join(&name);
+            let central_str = prospective_central.to_string_lossy().to_string();
+            if let Ok(Some(existing)) = store.get_skill_by_central_path(&central_str) {
+                if let Some(ref scenario_id) = active {
+                    if let Err(e) = store.add_skill_to_scenario(scenario_id, &existing.id) {
+                        errors.push(format!("{name}: {e}"));
+                        continue;
+                    }
+                }
+                skipped += 1;
+                continue;
+            }
+
+            match installer::install_from_local(dir, Some(&name)) {
+                Ok(result) => {
+                    let metadata = InstallSourceMetadata {
+                        source_type: "local".to_string(),
+                        source_ref: Some(dir.to_string_lossy().to_string()),
+                        source_ref_resolved: None,
+                        source_subpath: None,
+                        source_branch: None,
+                        source_revision: None,
+                        remote_revision: None,
+                        update_status: "local_only".to_string(),
+                        origin_metadata: None,
+                    };
+                    match store_installed_skill(&store, &result, &metadata, active.as_deref()) {
+                        Ok(_) => imported += 1,
+                        Err(e) => errors.push(format!("{name}: {e}")),
+                    }
+                }
+                Err(e) => errors.push(format!("{name}: {e}")),
+            }
+        }
+
+        Ok(BatchImportResult {
+            imported,
+            skipped,
+            errors,
+        })
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 fn remove_path_if_exists(path: &Path) -> Result<(), String> {
