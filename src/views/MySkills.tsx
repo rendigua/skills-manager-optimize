@@ -82,6 +82,9 @@ export function MySkills() {
   const [isMultiSelect, setIsMultiSelect] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [batchDeleteConfirm, setBatchDeleteConfirm] = useState(false);
+  const [runtimeComparing, setRuntimeComparing] = useState(false);
+  const [originAuditing, setOriginAuditing] = useState(false);
+  const [originBackfilling, setOriginBackfilling] = useState(false);
 
   const installedTools = tools.filter((tool) => tool.installed && tool.enabled);
   const activeScenarioName = activeScenario?.name || t("mySkills.currentScenarioFallback");
@@ -379,6 +382,76 @@ export function MySkills() {
     }
   };
 
+  const handleRuntimeCompare = async () => {
+    const runtimeRoot =
+      tools.find((tool) => tool.key === "codex" && tool.installed)?.skills_dir ||
+      tools.find((tool) => tool.installed)?.skills_dir;
+
+    if (!runtimeRoot) {
+      toast.info(t("mySkills.runtimeCompareNoTool"));
+      return;
+    }
+
+    setRuntimeComparing(true);
+    try {
+      const result = await api.scanRuntimeMigration(runtimeRoot);
+      const summary = result.entries.reduce<Record<string, number>>((acc, entry) => {
+        const key = entry.placement_kind || entry.kind || "unknown";
+        acc[key] = (acc[key] || 0) + 1;
+        return acc;
+      }, {});
+      const parts = Object.entries(summary)
+        .map(([key, count]) => `${key}:${count}`)
+        .join(" · ");
+      toast.success(t("mySkills.runtimeCompareDone", { count: result.entries.length }));
+      if (parts) {
+        toast.message(parts);
+      }
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, t("common.error")));
+    } finally {
+      setRuntimeComparing(false);
+    }
+  };
+
+  const handleOriginAudit = async () => {
+    setOriginAuditing(true);
+    try {
+      const plan = await api.scanOriginResolution();
+      const actionable = plan.entries.filter((entry) => entry.action !== "noop").length;
+      const reviewNeeded = plan.entries.filter((entry) => entry.action === "needs-network-review").length;
+      toast.success(
+        t("mySkills.originAuditDone", {
+          total: plan.entries.length,
+          actionable,
+          review: reviewNeeded,
+        })
+      );
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, t("common.error")));
+    } finally {
+      setOriginAuditing(false);
+    }
+  };
+
+  const handleOriginBackfill = async () => {
+    setOriginBackfilling(true);
+    try {
+      const result = await api.applyOriginBackfill(60);
+      toast.success(
+        t("mySkills.originBackfillDone", {
+          applied: result.applied,
+          review: result.review_needed,
+        })
+      );
+      await refreshManagedSkills();
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, t("common.error")));
+    } finally {
+      setOriginBackfilling(false);
+    }
+  };
+
   const handleCheckUpdate = async (skill: ManagedSkill) => {
     setCheckingSkillId(skill.id);
     try {
@@ -646,6 +719,33 @@ export function MySkills() {
     return null;
   };
 
+  const sourceKindBadge = (skill: ManagedSkill) => {
+    switch (skill.source_kind) {
+      case "verified-upstream":
+        return {
+          label: t("mySkills.sourceKind.verifiedUpstream"),
+          className: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+        };
+      case "verified-distribution":
+        return {
+          label: t("mySkills.sourceKind.verifiedDistribution"),
+          className: "bg-sky-500/10 text-sky-700 dark:text-sky-300",
+        };
+      case "inferred-upstream":
+        return {
+          label: t("mySkills.sourceKind.inferredUpstream"),
+          className: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
+        };
+      case "custom-no-source":
+        return {
+          label: t("mySkills.sourceKind.customNoSource"),
+          className: "bg-surface-hover text-muted",
+        };
+      default:
+        return null;
+    }
+  };
+
   return (
     <div className="app-page">
       <div className="app-page-header pr-2 pb-1">
@@ -746,6 +846,30 @@ export function MySkills() {
           >
             <RefreshCw className={cn("h-3.5 w-3.5", checkingAll && "animate-spin")} />
             {t("mySkills.updateActions.checkAll")}
+          </button>
+          <button
+            onClick={handleRuntimeCompare}
+            disabled={runtimeComparing}
+            className="inline-flex items-center gap-1 rounded-md px-3 py-2 text-[13px] font-medium text-muted transition-colors hover:bg-surface-hover hover:text-secondary disabled:opacity-50"
+          >
+            <Layers className={cn("h-3.5 w-3.5", runtimeComparing && "animate-pulse")} />
+            {t("mySkills.runtimeCompare")}
+          </button>
+          <button
+            onClick={handleOriginAudit}
+            disabled={originAuditing}
+            className="inline-flex items-center gap-1 rounded-md px-3 py-2 text-[13px] font-medium text-muted transition-colors hover:bg-surface-hover hover:text-secondary disabled:opacity-50"
+          >
+            <Search className={cn("h-3.5 w-3.5", originAuditing && "animate-pulse")} />
+            {t("mySkills.originAudit")}
+          </button>
+          <button
+            onClick={handleOriginBackfill}
+            disabled={originBackfilling}
+            className="inline-flex items-center gap-1 rounded-md px-3 py-2 text-[13px] font-medium text-muted transition-colors hover:bg-surface-hover hover:text-secondary disabled:opacity-50"
+          >
+            <RotateCcw className={cn("h-3.5 w-3.5", originBackfilling && "animate-spin")} />
+            {t("mySkills.originBackfill")}
           </button>
           <button
             onClick={() => setViewMode("grid")}
@@ -936,6 +1060,7 @@ export function MySkills() {
               ? skill.scenario_ids.includes(activeScenario.id)
               : false;
             const badge = statusBadge(skill);
+            const sourceBadge = sourceKindBadge(skill);
 
             if (viewMode === "grid") {
               return (
@@ -1000,16 +1125,28 @@ export function MySkills() {
                     <p className="text-[13px] leading-[18px] text-muted truncate">
                       {skill.description || "—"}
                     </p>
-                    {badge && (
+                    {(sourceBadge || badge) && (
                       <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                        <span
-                          className={cn(
-                            "rounded-full px-2 py-0.5 text-[13px] font-medium",
-                            badge.className
-                          )}
-                        >
-                          {badge.label}
-                        </span>
+                        {sourceBadge && (
+                          <span
+                            className={cn(
+                              "rounded-full px-2 py-0.5 text-[13px] font-medium",
+                              sourceBadge.className
+                            )}
+                          >
+                            {sourceBadge.label}
+                          </span>
+                        )}
+                        {badge && (
+                          <span
+                            className={cn(
+                              "rounded-full px-2 py-0.5 text-[13px] font-medium",
+                              badge.className
+                            )}
+                          >
+                            {badge.label}
+                          </span>
+                        )}
                       </div>
                     )}
                     <div className="mt-2 flex flex-wrap items-center gap-1">
@@ -1158,6 +1295,16 @@ export function MySkills() {
                     {sourceIcon(skill.source_type)}
                     {sourceTypeLabel(skill)}
                   </span>
+                  {sourceBadge && (
+                    <span className={cn("rounded-full px-2 py-0.5 text-[12px] font-medium", sourceBadge.className)}>
+                      {sourceBadge.label}
+                    </span>
+                  )}
+                  {badge && (
+                    <span className={cn("rounded-full px-2 py-0.5 text-[12px] font-medium", badge.className)}>
+                      {badge.label}
+                    </span>
+                  )}
                   {enabledInScenario && (
                     <span className="text-[13px] font-medium text-amber-600 dark:text-amber-400/80">
                       {activeScenarioName}

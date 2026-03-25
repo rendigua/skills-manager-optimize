@@ -35,6 +35,14 @@ export interface ManagedSkill {
   description: string | null;
   source_type: string;
   source_ref: string | null;
+  source_ref_resolved: string | null;
+  source_subpath: string | null;
+  source_branch: string | null;
+  source_kind: string | null;
+  distribution_ref: string | null;
+  evidence_refs: string[];
+  confidence: string | null;
+  resolution_method: string | null;
   source_revision: string | null;
   remote_revision: string | null;
   update_status: string;
@@ -67,6 +75,14 @@ export interface SkillDocument {
   central_path: string;
 }
 
+export interface GeneratedSkillInput {
+  name: string;
+  content: string;
+  createdBy: string;
+  creationMode?: string | null;
+  derivationSummary?: string | null;
+}
+
 export interface Scenario {
   id: string;
   name: string;
@@ -89,6 +105,78 @@ export interface ScanResult {
   tools_scanned: number;
   skills_found: number;
   groups: DiscoveredGroup[];
+}
+
+export interface MigrationEntry {
+  path: string;
+  name: string;
+  kind: string;
+  placement_kind: string | null;
+  source_type: string | null;
+  source_kind: string | null;
+  details: string[];
+}
+
+export interface MigrationScanResult {
+  root: string;
+  entries: MigrationEntry[];
+}
+
+export interface OriginResolutionEntry {
+  path: string;
+  name: string;
+  source_type: string;
+  current_source_kind: string | null;
+  action: string;
+  reason: string;
+  suggested_source_kind: string | null;
+}
+
+export interface OriginResolutionPlan {
+  root: string;
+  entries: OriginResolutionEntry[];
+}
+
+export interface OriginResolutionApplyResult {
+  applied: number;
+  skipped: number;
+  network_review_needed: number;
+}
+
+export interface SourceCandidate {
+  source_kind: string;
+  source_ref: string;
+  source_ref_resolved: string;
+  source_subpath: string | null;
+  source_branch: string | null;
+  distribution_ref: string | null;
+  title: string;
+  skill_id: string;
+  installs: number;
+  confidence: string;
+  evidence_refs: string[];
+  install_command: string | null;
+}
+
+export interface OriginBackfillEntry {
+  path: string;
+  name: string;
+  current_source_kind: string | null;
+  action: string;
+  candidate: SourceCandidate | null;
+  reason: string;
+}
+
+export interface OriginBackfillPlan {
+  root: string;
+  entries: OriginBackfillEntry[];
+}
+
+export interface OriginBackfillApplyResult {
+  planned: number;
+  applied: number;
+  skipped: number;
+  review_needed: number;
 }
 
 export interface SkillsShSkill {
@@ -152,6 +240,15 @@ export const getSkillDocument = (skillId: string) =>
 
 export const deleteManagedSkill = (skillId: string) =>
   invoke<void>("delete_managed_skill", { skillId });
+
+export const createGeneratedSkill = (input: GeneratedSkillInput) =>
+  invoke<ManagedSkill>("create_generated_skill", {
+    name: input.name,
+    content: input.content,
+    createdBy: input.createdBy,
+    creationMode: input.creationMode ?? null,
+    derivationSummary: input.derivationSummary ?? null,
+  });
 
 export const installLocal = (sourcePath: string, name?: string) =>
   invoke<void>("install_local", { sourcePath, name: name || null });
@@ -233,6 +330,32 @@ export const unsyncSkillFromTool = (skillId: string, tool: string) =>
 
 export const scanLocalSkills = () => invoke<ScanResult>("scan_local_skills");
 
+export const scanRuntimeMigration = (rootPath: string) =>
+  invoke<MigrationScanResult>("scan_runtime_migration", { rootPath });
+
+export const scanOriginResolution = (rootPath?: string | null) =>
+  invoke<OriginResolutionPlan>("scan_origin_resolution", {
+    rootPath: rootPath ?? null,
+  });
+
+export const applyOriginResolution = (selectedPaths: string[], rootPath?: string | null) =>
+  invoke<OriginResolutionApplyResult>("apply_origin_resolution", {
+    rootPath: rootPath ?? null,
+    selectedPaths,
+  });
+
+export const scanOriginBackfill = (limit?: number, rootPath?: string | null) =>
+  invoke<OriginBackfillPlan>("scan_origin_backfill", {
+    rootPath: rootPath ?? null,
+    limit: typeof limit === "number" ? limit : null,
+  });
+
+export const applyOriginBackfill = (limit?: number, rootPath?: string | null) =>
+  invoke<OriginBackfillApplyResult>("apply_origin_backfill", {
+    rootPath: rootPath ?? null,
+    limit: typeof limit === "number" ? limit : null,
+  });
+
 export const importExistingSkill = (sourcePath: string, name?: string) =>
   invoke<void>("import_existing_skill", { sourcePath, name: name || null });
 
@@ -246,6 +369,12 @@ export const fetchLeaderboard = (board: string) =>
 
 export const searchSkillssh = (query: string, limit?: number) =>
   invoke<SkillsShSkill[]>("search_skillssh", {
+    query,
+    limit: limit ?? null,
+  });
+
+export const resolveSourceCandidates = (query: string, limit?: number) =>
+  invoke<SourceCandidate[]>("resolve_source_candidates", {
     query,
     limit: limit ?? null,
   });

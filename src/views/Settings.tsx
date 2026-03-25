@@ -50,12 +50,21 @@ export function Settings() {
   const [gitRemoteSaving, setGitRemoteSaving] = useState(false);
   const [proxyInput, setProxyInput] = useState("");
   const [proxySaving, setProxySaving] = useState(false);
-  const GITHUB_URL = "https://github.com/xingkongliang/skills-manager";
+  const [skillsmpApiKey, setSkillsmpApiKey] = useState("");
+  const [skillsmpSaving, setSkillsmpSaving] = useState(false);
+  const [syncDryRun, setSyncDryRun] = useState(false);
+  const [syncDryRunSaving, setSyncDryRunSaving] = useState(false);
+  const GITHUB_URL = "https://github.com/rendigua/skills-manager-optimize";
 
   useEffect(() => {
     api.getSettings("sync_mode").then((v) => { if (v) setSyncMode(v); });
     api.getSettings("default_scenario").then((v) => { if (v) setDefaultScenario(v); });
     api.getSettings("proxy_url").then((v) => { setProxyInput(v ?? ""); });
+    api.getSettings("skillsmp_api_key").then((v) => { setSkillsmpApiKey(v ?? ""); });
+    api.getSettings("sync_dry_run").then((v) => {
+      const normalized = (v ?? "false").trim().toLowerCase();
+      setSyncDryRun(normalized === "true" || normalized === "1" || normalized === "yes" || normalized === "on");
+    });
     api.getSettings("close_action").then((v) => { setCloseAction(v ?? ""); });
     api.getSettings("show_tray_icon").then((v) => {
       const normalized = (v ?? "true").trim().toLowerCase();
@@ -233,6 +242,32 @@ export function Settings() {
       toast.error(t("common.error"));
     } finally {
       setProxySaving(false);
+    }
+  };
+
+  const handleSaveSkillsmpApiKey = async () => {
+    setSkillsmpSaving(true);
+    try {
+      await api.setSettings("skillsmp_api_key", skillsmpApiKey.trim());
+      toast.success(t("settings.skillsmpApiKeySaved"));
+    } catch {
+      toast.error(t("common.error"));
+    } finally {
+      setSkillsmpSaving(false);
+    }
+  };
+
+  const handleSyncDryRunChange = async (enabled: boolean) => {
+    setSyncDryRun(enabled);
+    setSyncDryRunSaving(true);
+    try {
+      await api.setSettings("sync_dry_run", enabled ? "true" : "false");
+      toast.success(t("settings.syncDryRunSaved"));
+    } catch {
+      toast.error(t("common.error"));
+      setSyncDryRun(!enabled);
+    } finally {
+      setSyncDryRunSaving(false);
     }
   };
 
@@ -552,6 +587,31 @@ export function Settings() {
                 </button>
               </div>
             </div>
+            <div className="px-4 py-3">
+              <h3 className="text-[13px] text-secondary font-medium mb-0.5">{t("settings.skillsmpApiKey")}</h3>
+              <p className="text-[13px] text-muted mb-2">{t("settings.skillsmpApiKeyDesc")}</p>
+              <div className="flex items-center gap-2">
+                <input
+                  type="password"
+                  value={skillsmpApiKey}
+                  onChange={(e) => setSkillsmpApiKey(e.target.value)}
+                  placeholder={t("settings.skillsmpApiKeyPlaceholder")}
+                  className={`${fieldClass} flex-1 font-mono`}
+                />
+                <button
+                  onClick={handleSaveSkillsmpApiKey}
+                  disabled={skillsmpSaving}
+                  className={`${actionButtonClass} bg-surface-hover hover:bg-surface-active text-tertiary border-border`}
+                >
+                  {skillsmpSaving ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <LinkIcon className="w-3 h-3" />
+                  )}
+                  {t("common.save")}
+                </button>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -583,6 +643,36 @@ export function Settings() {
                     <LinkIcon className="w-3 h-3" />
                   )}
                   {t("common.save")}
+                </button>
+              </div>
+            </div>
+            <div className="px-4 py-3 flex items-center justify-between gap-4">
+              <div>
+                <h3 className="text-[13px] text-secondary font-medium mb-0.5">{t("settings.syncDryRun")}</h3>
+                <p className="text-[13px] text-muted">{t("settings.syncDryRunDesc")}</p>
+              </div>
+              <div className="flex bg-background border border-border-subtle rounded-[4px] p-px shrink-0">
+                <button
+                  onClick={() => handleSyncDryRunChange(true)}
+                  disabled={syncDryRunSaving}
+                  className={cn(
+                    segmentedButtonClass,
+                    syncDryRun ? "bg-surface-active text-secondary" : "text-muted hover:text-tertiary",
+                    syncDryRunSaving && "opacity-60"
+                  )}
+                >
+                  {t("settings.syncDryRunOn")}
+                </button>
+                <button
+                  onClick={() => handleSyncDryRunChange(false)}
+                  disabled={syncDryRunSaving}
+                  className={cn(
+                    segmentedButtonClass,
+                    !syncDryRun ? "bg-surface-active text-secondary" : "text-muted hover:text-tertiary",
+                    syncDryRunSaving && "opacity-60"
+                  )}
+                >
+                  {t("settings.syncDryRunOff")}
                 </button>
               </div>
             </div>

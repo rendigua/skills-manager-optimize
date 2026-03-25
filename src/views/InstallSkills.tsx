@@ -20,13 +20,14 @@ import {
   Search,
   X,
   MoreHorizontal,
+  Radar,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { cn } from "../utils";
 import { useApp } from "../context/AppContext";
 import * as api from "../lib/tauri";
-import type { ScanResult, SkillsShSkill, BatchImportResult, GitPreviewResult } from "../lib/tauri";
+import type { ScanResult, SkillsShSkill, BatchImportResult, GitPreviewResult, SourceCandidate } from "../lib/tauri";
 import { open } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useSearchParams } from "react-router-dom";
@@ -44,7 +45,7 @@ export function InstallSkills() {
   const { t } = useTranslation();
   const { refreshScenarios, refreshManagedSkills, managedSkills } = useApp();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState<"market" | "local" | "git">("market");
+  const [activeTab, setActiveTab] = useState<"market" | "local" | "git" | "resolver">("market");
   const [marketTab, setMarketTab] = useState<"hot" | "trending" | "alltime">("hot");
   const [marketQuery, setMarketQuery] = useState("");
   const [marketSourceFilter, setMarketSourceFilter] = useState("all");
@@ -66,6 +67,11 @@ export function InstallSkills() {
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
   const [scanLoading, setScanLoading] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [resolverQuery, setResolverQuery] = useState("");
+  const [resolverResults, setResolverResults] = useState<SourceCandidate[]>([]);
+  const [resolverLoading, setResolverLoading] = useState(false);
+  const [resolverError, setResolverError] = useState<string | null>(null);
+  const [resolverInstalling, setResolverInstalling] = useState<string | null>(null);
   const [importingPaths, setImportingPaths] = useState<Set<string>>(new Set());
   const [importingAll, setImportingAll] = useState(false);
   const marketListRef = useRef<HTMLDivElement | null>(null);
@@ -151,12 +157,12 @@ export function InstallSkills() {
 
   useEffect(() => {
     const tab = searchParams.get("tab");
-    if (tab === "market" || tab === "local" || tab === "git") {
+    if (tab === "market" || tab === "local" || tab === "git" || tab === "resolver") {
       setActiveTab(tab);
     }
   }, [searchParams]);
 
-  const switchTab = (tab: "market" | "local" | "git") => {
+  const switchTab = (tab: "market" | "local" | "git" | "resolver") => {
     setActiveTab(tab);
     setSearchParams({ tab });
   };
@@ -520,6 +526,52 @@ export function InstallSkills() {
     }
   };
 
+  const handleResolveCandidates = async () => {
+    const query = resolverQuery.trim();
+    if (!query) return;
+    setResolverLoading(true);
+    setResolverError(null);
+    try {
+      const results = await api.resolveSourceCandidates(query, 40);
+      setResolverResults(results);
+    } catch (error: unknown) {
+      const message = getErrorMessage(error, t("common.error"));
+      setResolverError(message);
+      toast.error(message);
+    } finally {
+      setResolverLoading(false);
+    }
+  };
+
+  const handleInstallResolvedCandidate = async (candidate: SourceCandidate) => {
+    setResolverInstalling(candidate.source_ref);
+    try {
+      if (candidate.source_kind === "verified-distribution") {
+        const idx = candidate.source_ref.lastIndexOf("/");
+        if (idx > 0) {
+          const source = candidate.source_ref.slice(0, idx);
+          const skillId = candidate.source_ref.slice(idx + 1);
+          await api.installFromSkillssh(source, skillId);
+        } else {
+          await api.installGit(candidate.source_ref_resolved);
+        }
+      } else if (candidate.source_subpath) {
+        const repoUrl = candidate.source_ref_resolved.replace(/\.git$/, "");
+        const branch = candidate.source_branch || "main";
+        await api.installGit(`${repoUrl}/tree/${branch}/${candidate.source_subpath}`);
+      } else {
+        await api.installGit(candidate.source_ref_resolved);
+      }
+
+      await Promise.all([refreshScenarios(), refreshManagedSkills()]);
+      toast.success(t("install.toast.success", { name: candidate.title }));
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, t("common.error")));
+    } finally {
+      setResolverInstalling(null);
+    }
+  };
+
   const scrollMarketListToTop = () => {
     marketListRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
@@ -649,6 +701,7 @@ export function InstallSkills() {
             { id: "market" as const, label: t("install.browseMarket"), icon: Box },
             { id: "local" as const, label: t("install.localInstall"), icon: UploadCloud },
             { id: "git" as const, label: t("install.gitInstall"), icon: Github },
+            { id: "resolver" as const, label: t("install.sourceResolver"), icon: Radar },
           ].map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -1364,6 +1417,108 @@ export function InstallSkills() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {activeTab === "resolver" && (
+        <div className="space-y-4 pb-8 animate-in fade-in duration-300">
+          <section className="app-panel p-5">
+            <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-surface-hover">
+              <Radar className="h-5 w-5 text-tertiary" />
+            </div>
+            <h2 className="mb-1 text-[14px] font-semibold text-primary">{t("install.sourceResolver")}</h2>
+            <p className="mb-4 text-[13px] text-muted">{t("install.sourceResolverDesc")}</p>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={resolverQuery}
+                onChange={(e) => setResolverQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !resolverLoading && resolverQuery.trim()) {
+                    handleResolveCandidates();
+                  }
+                }}
+                placeholder={t("install.sourceResolverPlaceholder")}
+                className="app-input flex-1 bg-background"
+              />
+              <button
+                onClick={handleResolveCandidates}
+                disabled={resolverLoading || !resolverQuery.trim()}
+                className="app-button-primary"
+              >
+                {resolverLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
+                {t("install.sourceResolverRun")}
+              </button>
+            </div>
+          </section>
+
+          {resolverError ? (
+            <StatusBanner
+              compact
+              title={t("common.requestFailed")}
+              description={resolverError}
+              actionLabel={t("common.retry")}
+              onAction={handleResolveCandidates}
+              tone="danger"
+            />
+          ) : null}
+
+          <section className="app-panel overflow-hidden">
+            <div className="border-b border-border-subtle px-4 py-3.5">
+              <h2 className="text-[13px] font-semibold text-secondary">
+                {t("install.sourceResolverResults", { count: resolverResults.length })}
+              </h2>
+            </div>
+            <div className="space-y-3 p-4">
+              {resolverResults.length === 0 ? (
+                <div className="py-8 text-center text-[13px] text-muted">{t("install.sourceResolverEmpty")}</div>
+              ) : (
+                resolverResults.map((candidate) => (
+                  <article key={`${candidate.source_ref}-${candidate.skill_id}`} className="rounded-lg border border-border-subtle bg-bg-secondary px-4 py-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-[14px] font-semibold text-primary">{candidate.title}</div>
+                        <div className="mt-1 flex flex-wrap items-center gap-2 text-[12px] text-muted">
+                          <span className="rounded-full bg-surface-hover px-2 py-0.5">{candidate.source_kind}</span>
+                          <span className="rounded-full bg-surface-hover px-2 py-0.5">{candidate.confidence}</span>
+                          <span>{candidate.skill_id}</span>
+                        </div>
+                        <div className="mt-2 truncate text-[12px] text-muted" title={candidate.source_ref_resolved}>
+                          {candidate.source_ref_resolved}
+                        </div>
+                        {candidate.distribution_ref ? (
+                          <div className="mt-1 truncate text-[12px] text-faint" title={candidate.distribution_ref}>
+                            {candidate.distribution_ref}
+                          </div>
+                        ) : null}
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2">
+                        {(candidate.distribution_ref || candidate.source_ref_resolved) && (
+                          <button
+                            onClick={() => openUrl(candidate.distribution_ref || candidate.source_ref_resolved)}
+                            className="rounded-[6px] border border-border-subtle bg-surface px-2.5 py-1.5 text-[13px] font-medium text-secondary transition-colors hover:bg-surface-hover"
+                          >
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleInstallResolvedCandidate(candidate)}
+                          disabled={resolverInstalling === candidate.source_ref}
+                          className="rounded-[6px] border border-accent-border bg-accent-dark px-2.5 py-1.5 text-[13px] font-medium text-white transition-colors hover:bg-accent disabled:opacity-50"
+                        >
+                          {resolverInstalling === candidate.source_ref ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Plus className="h-3.5 w-3.5" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                ))
+              )}
+            </div>
+          </section>
         </div>
       )}
 
